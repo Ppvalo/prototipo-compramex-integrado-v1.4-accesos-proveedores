@@ -1,0 +1,19 @@
+COMPRAMEX v1.4 · Consolidación de accesos del Módulo de Proveedores
+
+Ajustes realizados sobre la versión v1.3:
+
+1. El portal público "Registro y atención en línea de proveedores" consolida los accesos autenticados en dos grupos de nivel superior:
+
+   PROVEEDOR
+   - Nuevo proveedor · Registrarme
+   - Ingresar / continuar trámite
+
+   OFICIALÍA MAYOR
+   - Responsable de asignación
+   - Acceso de autoridad
+
+2. "Verificar cédula" se presenta de forma independiente debajo de ambos grupos, como consulta pública que no requiere ingreso al sistema.
+
+3. Se conservaron los identificadores y eventos existentes de los cuatro accesos, por lo que no se altera su funcionalidad demostrativa previa.
+
+4. Se añadió diseño responsivo para que los dos accesos se muestren en columnas en escritorio y apilados en dispositivos móviles.

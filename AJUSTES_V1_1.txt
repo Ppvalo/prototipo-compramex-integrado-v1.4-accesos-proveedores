@@ -1,0 +1,27 @@
+COMPRAMEX integrado v1.1 — Ajustes solicitados
+
+1. Documentos / Art. 28 del Reglamento de la Ley
+   - Indicador Sí/No por documento.
+   - Selector de archivo por documento.
+   - Validación de documentos mínimos.
+
+2. Canal de solicitud
+   - Origen: Área usuaria/requirente.
+   - Primer destino: Coordinación Administrativa.
+   - Después: Recursos Materiales.
+   - Sin envío directo del Área usuaria a Oficialía Mayor.
+
+3. Checklists
+   - Corrección CSS para hacer visibles checkbox y texto en Revisión Art. 28 y Agregar fuente.
+
+4. Técnicas de investigación
+   a) Consulta a precios históricos mediante modelo estadístico.
+   b) Solicitud de precios de mercado vía electrónica.
+   c) Consulta de precios de campo.
+   d) Segmentación de mercado.
+   e) Comercio electrónico.
+   f) Técnica de Mystery Shopper.
+
+5. Fuentes de mercado
+   - Aviso de selección desde el Padrón de Proveedores.
+   - Selector DEMO de proveedores del Padrón.

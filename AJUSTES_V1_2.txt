@@ -1,0 +1,30 @@
+COMPRAMEX integrado v1.2 — Bandeja de Coordinación Administrativa
+
+OBJETIVO
+Hacer explícita la intervención de la Coordinación Administrativa como compuerta previa a Recursos Materiales, sin modificar el flujo funcional ya incorporado en v1.1.
+
+CAMBIOS
+1. Bandeja segmentada en cuatro grupos:
+   - Recibidas del área requirente.
+   - Para validar.
+   - Devueltas.
+   - Enviadas a Recursos Materiales.
+
+2. Recepción y validación diferenciadas:
+   - Una solicitud enviada por el Área usuaria/requirente entra a “Recibidas”.
+   - La CA usa “Iniciar validación” para tomarla.
+   - Después pasa a “Para validar”.
+   - Sólo desde esa etapa se habilita “Validar y remitir a Recursos Materiales”.
+
+3. Devoluciones:
+   - Cuando la revisión del Art. 28 determina insuficiencia, la solicitud aparece en “Devueltas”.
+   - La subsanación del Área usuaria/requirente genera nueva versión y vuelve a “Recibidas”.
+
+4. Seguimiento:
+   - Contadores por bandeja.
+   - Búsqueda por folio, dependencia, área requirente, descripción o movimiento.
+   - Etiqueta de etapa CA en la tabla y en el expediente.
+   - Registros DEMO adicionales para mostrar las cuatro bandejas desde el primer ingreso.
+
+NOTA
+La segmentación de la bandeja es una representación UX del control operativo de la Coordinación Administrativa. Los estados generales del expediente se conservan para mantener continuidad con el catálogo de estados del prototipo.

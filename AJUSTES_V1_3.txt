@@ -1,0 +1,21 @@
+COMPRAMEX integrado v1.3 · Dependencias y roles
+
+Ajustes principales:
+1. Se incorpora un nivel superior de selección por Dependencia para el acceso al Módulo de Catálogo de Bienes y Servicios y Estudios de Mercado.
+2. Se cargan las 18 dependencias del archivo Dependencias.xlsx proporcionado por el usuario, conservando Clave GEM, sigla operativa, nombre y tipo.
+3. Todas las dependencias tienen disponibles los roles:
+   - Área Requirente / Usuario
+   - Coordinación Administrativa
+4. Para Oficialía Mayor (Clave GEM 234, sigla OM) se agregan además:
+   - Persona Investigadora de Mercado Estatal
+   - Titular del Departamento de Investigación de Mercado Estatal
+   - Titular de la Subdirección de Investigación de Mercado Estatal
+   - Titular de la Dirección de Investigación de Mercado
+   - Responsable del Catálogo de Bienes y Servicios
+   - Auditor / Consulta
+5. La pantalla de acceso ahora funciona como jerarquía Dependencia → Rol.
+6. Las bandejas de Área Requirente y Coordinación Administrativa se acotan a la dependencia seleccionada.
+7. Los roles especializados de Oficialía Mayor conservan visión institucional/transversal para atender solicitudes de todas las dependencias.
+8. La creación de nuevas solicitudes toma automáticamente la dependencia del usuario autenticado y no permite cambiarla desde el formulario.
+9. La navegación del módulo se ajusta por rol para no exponer operaciones ajenas al perfil seleccionado.
+10. Se actualiza el contexto visual del dashboard para mostrar dependencia, perfil y alcance activo.
