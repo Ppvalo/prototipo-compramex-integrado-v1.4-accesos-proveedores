@@ -1,0 +1,3 @@
+COMPRAMEX integrado v1.7 — Requisitos documentales individuales, Bitácora consolidada y Ficha de Estudio de Mercado
+Consulte README.txt y TRAZABILIDAD_FUNCIONAL.md para reglas, límites de la demo y flujo.
+Pruebas: node --check js/catalog-market.js; node --check js/market-documents.js.

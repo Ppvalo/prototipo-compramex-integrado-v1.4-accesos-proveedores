@@ -1,0 +1,13 @@
+COMPRAMEX integrado v1.5 — Inicio directo por Coordinación Administrativa
+
+OBJETIVO
+Incorporar sobre la versión v1.4 la regla de que la Coordinación Administrativa de cada dependencia es el único perfil que envía solicitudes de alta de bienes o servicios a la Oficialía Mayor y puede iniciar directamente una solicitud sin petición previa de un Área Requirente.
+
+CAMBIOS
+1. El Área Requirente conserva la creación de solicitudes y las turna a su Coordinación Administrativa.
+2. La Coordinación Administrativa puede crear directamente altas de bienes o servicios.
+3. En las altas directas no se exige un Área Requirente de origen.
+4. Las altas directas ingresan a la bandeja “Para validar”.
+5. La acción “Validar y enviar a Oficialía Mayor” pertenece exclusivamente a la Coordinación Administrativa.
+6. Los perfiles especializados de la Oficialía Mayor sólo reciben y visualizan solicitudes después de dicho envío.
+7. Se conserva sin cambios el resto de la funcionalidad de Catálogo, Estudios de Mercado y Proveedores.

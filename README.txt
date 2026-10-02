@@ -114,7 +114,7 @@ FUNCIONALIDAD REPRESENTADA · ESTUDIO DE MERCADO
 - Cuadro comparativo.
 - Cálculo del promedio con al menos dos cotizaciones elegibles.
 - Flujo de excepción Art. 18 cuando no existen al menos dos cotizaciones elegibles.
-- Generación secuencial demostrativa de Estudio de Mercado final y Bitácora.
+- Generación de Bitácora consolidada y Fichas de Estudio de Mercado después de la autorización de Dirección.
 - Cadena de firmas: Elaboró -> Autorizó -> Revisó -> Dirección.
 - Expediente electrónico, bitácora de eventos y reportes.
 
@@ -140,8 +140,8 @@ El estado del nuevo módulo se guarda temporalmente en localStorage del navegado
 
 AJUSTES v1.1 · 22/09/2026
 
-- La solicitud de alta/actualización del Catálogo se origina exclusivamente en el Área usuaria/requirente.
-- El Área usuaria/requirente envía primero a su Coordinación Administrativa; la Coordinación valida y remite a Recursos Materiales. No existe envío directo del Área usuaria a la Oficialía Mayor.
+- La solicitud de alta/actualización del Catálogo puede originarse en el Área usuaria/requirente o directamente en la Coordinación Administrativa.
+- El Área usuaria/requirente envía primero a su Coordinación Administrativa; únicamente la Coordinación valida y envía las altas a la Oficialía Mayor.
 - La sección “Documentos y suficiencia · Art. 28 del Reglamento de la Ley” permite indicar Sí/No por documento y seleccionar un archivo para simular su carga al expediente.
 - Se corrigió la visualización de los checkbox del checklist de suficiencia y del formulario de fuentes.
 - El Estudio de Mercado incorpora seis técnicas de investigación seleccionables.
@@ -154,10 +154,44 @@ AJUSTES v1.2 · BANDEJA DE COORDINACIÓN ADMINISTRATIVA
   1) Recibidas del área requirente.
   2) Para validar.
   3) Devueltas.
-  4) Enviadas a Recursos Materiales.
+  4) Enviadas a Oficialía Mayor.
 - Las solicitudes nuevas llegan primero a “Recibidas del área requirente”.
 - La Coordinación Administrativa debe tomar la solicitud mediante “Iniciar validación” antes de poder remitirla.
-- Una vez validada, la acción “Validar y remitir a Recursos Materiales” mueve la solicitud a “Enviadas a Recursos Materiales”.
+- Una vez validada, la acción “Validar y enviar a Oficialía Mayor” mueve la solicitud a “Enviadas a Oficialía Mayor”.
 - Las solicitudes devueltas por insuficiencia del Art. 28 aparecen en “Devueltas”.
 - Cuando el Área usuaria/requirente subsana, la nueva versión vuelve a “Recibidas del área requirente” para una nueva validación de la Coordinación Administrativa.
 - Se incorporan contadores por bandeja, filtros, búsqueda por área requirente y una etiqueta visual de la etapa en Coordinación Administrativa.
+
+
+AJUSTES v1.5 · INICIO DIRECTO POR COORDINACIÓN ADMINISTRATIVA
+- Este ajuste sustituye únicamente la regla de origen descrita en v1.1: la solicitud puede originarse en el Área usuaria/requirente o directamente en la Coordinación Administrativa de la dependencia.
+- El Área usuaria/requirente sólo turna la solicitud a su Coordinación Administrativa; no puede enviarla directamente a la Oficialía Mayor.
+- La Coordinación Administrativa es el único perfil que envía solicitudes de alta de bienes o servicios a la Oficialía Mayor.
+- Cuando la Coordinación Administrativa inicia directamente una alta, el Área Requirente no es obligatoria y el expediente entra en la bandeja “Para validar”.
+- La bandeja “Enviadas a Recursos Materiales” se presenta como “Enviadas a Oficialía Mayor”.
+
+
+AJUSTES v1.6 · ESTUDIO DE MERCADO POR BIEN O SERVICIO
+- Cada solicitud puede incluir uno o varios bienes y/o servicios del mismo giro: alta, actualización o uso de registro vigente. Los movimientos se determinan por la situación de la clave; partida y unidad se eligen de catálogos demostrativos.
+- La Coordinación Administrativa revisa y visualiza los anexos antes del envío a Oficialía Mayor. Puede devolver con motivo obligatorio; el Área Requirente subsana sin perder el historial. El analista sólo visualiza sus asignaciones y comienza con un checklist sin marcas predefinidas.
+- Oficio de Dictamen de Suficiencia Presupuestal y regla Art. 28 condicionan el avance. El Dictamen Técnico POBALIN 059 se solicita solamente cuando aplique y es distinto del Dictamen / Oficio de Resultado del Estudio de Mercado.
+- Fuentes, cálculo de precio, vigencia y resultado se conservan por elemento; no se repiten validaciones, cálculos o documentos de la misma etapa. El Titular asigna o reasigna justificadamente y la subsanación recupera al analista original.
+- El resultado se autoriza secuencialmente por Titular, Subdirección y Dirección. El Dictamen / Oficio de Resultado recibe folio DMR único vinculado al folio CAT, se envía a la Coordinación Administrativa y permite completar la actualización o incorporación real al Catálogo con historial anterior/nuevo.
+- Bitácora consolidada, Fichas de Estudio de Mercado, oficios y avisos se abren como documentos HTML imprimibles; para PDF, use Imprimir → Guardar como PDF en el navegador. Adjuntos permitidos: PDF, PNG, JPG, JPEG de hasta 1.5 MB por archivo debido al almacenamiento local del prototipo.
+- Detalles adicionales de alcance, controles y límites demostrativos: AJUSTES_V1_6.txt.
+
+AJUSTES v1.7 · REQUISITOS INDIVIDUALES Y DOCUMENTOS CONSOLIDADOS
+- Cada bien/servicio registra sus propios documentos, POBALIN 059 Sí/No aplica y regla Art. 28. La regla original de v1.7 que exigía el Dictamen de Suficiencia Presupuestal por elemento fue sustituida en v1.8 por un único documento a nivel solicitud. Art. 28 No aplica no exige los archivos condicionados por esa regla ni aparece pendiente.
+- Las subsanaciones preservan archivos anteriores con usuario, fecha y versión y conservan la asociación por elemento. Registros demostrativos antiguos sin archivo real no se consideran cargados.
+- Elaboró, Titular, Subdirección y Dirección registran una autorización única por etapa y expediente, con usuario/rol/fecha/hora; el documento de resultado DMR conserva su flujo independiente.
+- Sólo después de las cuatro autorizaciones se habilita la generación de la Bitácora consolidada (por Titular) y de cada Ficha de Estudio de Mercado (por Titular o investigador); imprimir exige generación previa.
+- La Bitácora sigue Bitacora.pdf y reúne identificación, seis técnicas, fuentes, comparación de precios, análisis, validaciones y trazabilidad; sustituye al Estudio final independiente. Cada Ficha sigue los seis campos de Estudio.pdf.
+- Estos controles son una simulación local sin identidad autenticada ni almacenamiento institucional: localStorage es editable por el usuario del navegador y no sustituye validación en servidor.
+
+AJUSTES v1.8 · DOCUMENTO DE SOLICITUD, FIRMAS Y VISUALIZACIÓN
+- El Oficio de Dictamen de Suficiencia Presupuestal se carga una sola vez por solicitud, sin opción No aplica; el Área Requirente debe adjuntarlo antes del envío a CA. CA y los perfiles que consultan el expediente pueden verlo. La validación de CA vuelve a exigirlo antes del envío a Oficialía Mayor. Los datos anteriores en almacenamiento local se migran al campo único de solicitud sin duplicar el documento por elemento.
+- Se alinearon nombres, estados y acciones de las filas documentales, así como los controles de carga en las tarjetas.
+- Después de cada firma se muestra el siguiente responsable: investigador → Titular del Departamento → Subdirección → Dirección; al resolver Dirección se informa el resultado final. La leyenda de firma del Titular especifica «del Departamento».
+- La pantalla de registro del Catálogo muestra altas y actualizaciones procesadas durante la pestaña actual, con clave, solicitud, precio anterior y nuevo y enlace a la ficha. Este listado temporal desaparece al recargar; el catálogo de demostración sigue guardado en localStorage como antes.
+- Tanto Área Requirente como Coordinación Administrativa pueden configurar y justificar Art. 28 No aplica por bien/servicio; los demás roles sólo consultan el estado. Se mantienen los anexos y validaciones condicionados existentes.
+- Más detalle: AJUSTES_V1_8.md. El módulo de Proveedores no fue modificado.

@@ -154,3 +154,28 @@
 /* v1.4 · Consolidación de accesos del Módulo de Proveedores */
 .provider-access-groups{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin-top:25px}.provider-access-card{border:1px solid var(--line);border-radius:14px;padding:18px;background:#fff;display:flex;flex-direction:column;gap:16px;min-width:0}.provider-access-card-user{box-shadow:inset 0 3px 0 var(--wine)}.provider-access-card-authority{background:#faf7f4;box-shadow:inset 0 3px 0 var(--gold)}.provider-access-head{display:grid;grid-template-columns:42px minmax(0,1fr);gap:12px;align-items:start}.provider-access-icon{width:42px;height:42px;border-radius:12px;display:grid;place-items:center;background:var(--wine);color:#fff;font-size:.78rem;font-weight:900;letter-spacing:.03em}.provider-access-card-authority .provider-access-icon{background:#6f5a43}.provider-access-head h3{margin:2px 0 5px;font-size:1.05rem}.provider-access-head p{margin:0;color:var(--muted);font-size:.79rem;line-height:1.45}.provider-access-actions{display:grid;grid-template-columns:1fr;gap:9px;margin-top:auto}.provider-access-actions .btn{width:100%;justify-content:center}.provider-public-verify{margin-top:14px;border:1px dashed #cdbba9;border-radius:12px;padding:14px 16px;background:#fff;display:flex;gap:18px;align-items:center;justify-content:space-between}.provider-public-verify>div{display:grid;gap:3px}.provider-public-verify b{font-size:.92rem}.provider-public-verify small{color:var(--muted);font-size:.74rem}.provider-public-verify .btn{white-space:nowrap}
 @media(max-width:720px){.provider-access-groups{grid-template-columns:1fr}.provider-public-verify{align-items:stretch;flex-direction:column}.provider-public-verify .btn{width:100%}}
+
+/* v1.8 · Alineación documental sin cambios en las operaciones de carga/consulta */
+.request-document-row.document-record{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) 112px 132px;
+  align-items:start;
+  gap:12px;
+}
+.document-record-description{min-width:0;overflow-wrap:anywhere}
+.document-record-status,.document-record-action{min-width:0;display:flex;align-items:flex-start;justify-content:center}
+.document-record-action .btn{width:100%}
+.document-upload-card{display:flex;flex-direction:column;align-items:stretch}
+.document-upload-title{min-height:4.1em}
+.document-presence{min-height:2.9em}
+.document-file-control{margin-top:auto}
+@supports (grid-template-rows:subgrid){
+  .document-upload-card{display:grid;grid-row:span 4;grid-template-rows:subgrid}
+  .document-file-control{margin-top:0}
+}
+@media(max-width:760px){
+  .request-document-row.document-record{grid-template-columns:minmax(0,1fr) 112px;align-items:start}
+  .document-record-description{grid-column:1/-1}
+  .document-record-action{grid-column:2}
+  .document-upload-title{min-height:0}
+}

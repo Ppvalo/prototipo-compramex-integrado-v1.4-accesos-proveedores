@@ -1,0 +1,17 @@
+COMPRAMEX integrado v1.6 — Estudios de Mercado por bien o servicio
+
+BASE: Prototipo integrado v1.5 con inicio directo por Coordinación Administrativa.
+No se modificaron css/styles.css ni js/app.js (Módulo de Proveedores).
+
+1. Solicitudes con uno o varios bienes y/o servicios del mismo giro. Cada elemento guarda tipo, movimiento inferido, clave, partida, unidad, descripción, especificación, fuentes, precio, vigencia y resultado. Catálogos demostrativos de partidas y unidades reemplazan la captura libre.
+2. Clave vigente con precio vigente: permite uso trazado sin duplicar altas. Clave inactiva o con precio sin vigencia: actualización. Clave inexistente: alta, con consulta previa y deduplicación.
+3. Coordinación Administrativa: origen directo opcional; primer filtro documental, visualización de archivos, devolución obligatoriamente motivada y único envío a Oficialía Mayor.
+4. Documentos: PDF/PNG/JPG/JPEG, hasta 1.5 MB por archivo debido a localStorage. Oficio de Suficiencia Presupuestal obligatorio para estudiar; Dictamen Técnico POBALIN 059 condicionado Sí/No aplica, independiente del documento de resultado. Regla Art. 28 configurable y justificada por la Coordinación Administrativa. Los documentos sustituidos conservan versión e historial.
+5. Titular asigna; investigador sólo ve expedientes propios. Tras devolución y corrección se recupera automáticamente al analista original; el titular puede reasignar manualmente antes del estudio con motivo registrado.
+6. Checklist del investigador comienza vacío. Fuentes y precios se capturan por elemento, se validan y calculan una vez por conjunto de datos; nueva operación de recálculo exige acción expresa. La excepción Art. 18 se documenta por elemento cuando corresponde.
+7. Estudio final, bitácora y ficha individual por bien/servicio se generan como HTML autosuficiente imprimible (Imprimir → Guardar como PDF). Los formatos aportados sirven de referencia de campos. No se simulan firmas autógrafas ni se genera un registro independiente de “Elaboró”.
+8. Cadena de aprobación Titular → Subdirección → Dirección. Al terminar, Dirección genera una sola vez el Dictamen / Oficio de Resultado con ID DMR único asociado al folio de solicitud CAT; comunica AUTORIZADA/NO AUTORIZADA a la Coordinación Administrativa. Diferente del Dictamen Técnico POBALIN 059. Comunicaciones/oficios adicionales se pueden generar a partir del expediente sin duplicar tipo y etapa.
+9. El responsable del Catálogo aplica conjuntamente todos los movimientos autorizados: actualiza/reactiva registros existentes o incorpora nuevos; registra valores anteriores y nuevos, responsable, fecha, estudio y folio. No concluye una alta sin publicación en el Catálogo. El uso de clave vigente queda trazado sin alta nueva.
+10. Las identidades, validaciones institucionales, el padrón y el almacenamiento son demostrativos y locales al navegador; no hay servidor, firma electrónica oficial ni consulta o QR de autenticidad real. Abrir index.html en un navegador moderno. Para generar PDF, abrir el documento derivado y usar Imprimir/Guardar como PDF.
+
+VERIFICACIÓN: node --check de ambos scripts; test-flow.cjs externo al ZIP ejercita solicitud múltiple, devolución/subsanación, POBALIN 059, reglas condicionadas Art. 28, permisos, analista, reasignación, fuentes, precio, autorizaciones, oficio vinculado, comunicaciones, altas, actualización y uso vigente.
