@@ -430,7 +430,7 @@
   var BITACORA_TECHNIQUES = [
     { label: 'Consulta a precios históricos mediante modelo estadístico', aliases: ['historical', 'historicalprices', 'historicalpricemodel', 'precios historicos', 'consulta a precios historicos', 'modelo estadistico'], fields: ['historical', 'historicalPrices', 'historicalPriceModel', 'preciosHistoricos', 'consultaPreciosHistoricos'] },
     { label: 'Solicitud de precios de mercado vía electrónica', aliases: ['electronicrequest', 'electronicmarketrequest', 'solicitud de precios electronica', 'solicitud precios mercado', 'via electronica'], fields: ['electronicRequest', 'electronicMarketRequest', 'electronicPrices', 'solicitudPreciosElectronica', 'solicitudPreciosMercado'] },
-    { label: 'Consulta de precios en campo', aliases: ['field', 'fieldconsultation', 'consultationfield', 'consulta en campo', 'consulta precios campo'], fields: ['fieldConsultation', 'consultationField', 'fieldPrices', 'consultaEnCampo', 'consultaPreciosCampo', 'campo'] },
+    { label: 'Consulta de precios en campo', aliases: ['field', 'fieldconsultation', 'consultationfield', 'consulta en campo', 'consulta precios campo', 'consulta de precios de campo'], fields: ['fieldConsultation', 'consultationField', 'fieldPrices', 'consultaEnCampo', 'consultaPreciosCampo', 'campo'] },
     { label: 'Segmentación de mercado', aliases: ['segmentation', 'marketsegmentation', 'segmentacion de mercado'], fields: ['segmentation', 'marketSegmentation', 'segmentacionMercado'] },
     { label: 'Comercio electrónico', aliases: ['ecommerce', 'electroniccommerce', 'comercio electronico'], fields: ['ecommerce', 'electronicCommerce', 'comercioElectronico'] },
     { label: 'Técnica Mystery Shopper', aliases: ['mystery', 'mysteryshopper', 'mysteryshopping', 'tecnica mystery shopper'], fields: ['mystery', 'mysteryShopper', 'mysteryShopping', 'tecnicaMysteryShopper'] }
@@ -512,10 +512,12 @@
     });
   }
 
-  function techniqueTable(item, study, request) {
+  function techniqueTable(items, study, request) {
+    var candidates = array(items).concat([{raw:{},sources:array(study && study.sources)}]);
+    if (!candidates.length) candidates = [{ raw: {}, sources: [] }];
     return '<div class="md-table-wrap"><table><thead><tr><th>No.</th><th>Técnica de estudio de mercado</th><th>Marca X</th></tr></thead><tbody>' +
       BITACORA_TECHNIQUES.map(function (definition, index) {
-        var checked = techniqueSelected(definition, item, study, request);
+        var checked = candidates.some(function (item) { return techniqueSelected(definition, item, study, request); });
         return '<tr><td>' + (index + 10) + '</td><td>' + display(definition.label) + '</td><td><strong>' + (checked ? 'X' : '—') + '</strong></td></tr>';
       }).join('') + '</tbody></table></div>';
   }
@@ -670,6 +672,7 @@
       fieldText('Número de elementos', items.length) +
       fieldText('Promedio global MXN', averageValue === null ? null : money(averageValue), 'wide') +
       '</div></section>' +
+      '<section class="md-section"><h2>Técnicas de mercado</h2><p class="md-small">Se concentran las técnicas seleccionadas en el estudio, por elemento y en las fuentes de consulta.</p>' + techniqueTable(items, study, request) + '</section>' +
       (items.length ? items.map(function (item, index) {
         var analysis = priceAnalysis(item);
         var inRange = analysis.within.length ? analysis.within.map(function (entry) { return money(entry.value); }).join(' · ') : null;
@@ -684,7 +687,6 @@
           fieldText('Especificación', specification, 'wide') +
           fieldText('Resultado', normalizeResult(item.result)) +
           '</div>' +
-          '<h3>Técnicas de estudio de mercado efectuado</h3>' + techniqueTable(item, study, request) +
           '<h3>Fuentes de consulta (hasta tres nombres y precios)</h3>' + sourceSlotsTable(item) +
           '<h3>Fuentes completas y validaciones</h3>' + sourceTable(item.sources) +
           '<h3>Obtención del precio de mercado y análisis</h3><div class="md-grid">' +

@@ -1,0 +1,71 @@
+.market-generate-ficha-btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  min-height: 2.75rem;
+  padding: 0.72rem 1rem;
+  border: 1px solid #b28854;
+  border-radius: 0.65rem;
+  background: linear-gradient(135deg, #7a1737 0%, #5f102a 100%);
+  box-shadow: 0 0.35rem 0.85rem rgba(95, 16, 42, 0.22), inset 0 1px 0 rgba(255, 255, 255, 0.14);
+  color: #fffaf2;
+  font-weight: 800;
+  letter-spacing: 0.01em;
+  transition: transform 160ms ease, box-shadow 160ms ease, border-color 160ms ease;
+}
+
+.market-generate-ficha-btn::before {
+  content: "";
+  width: 0.68rem;
+  height: 0.84rem;
+  border: 2px solid #e1bd80;
+  border-radius: 0.12rem;
+  box-shadow: inset 0 -0.2rem 0 rgba(225, 189, 128, 0.25);
+}
+
+.market-generate-ficha-btn:hover:not(:disabled),
+.market-generate-ficha-btn:focus-visible:not(:disabled) {
+  border-color: #e1bd80;
+  box-shadow: 0 0.55rem 1.1rem rgba(95, 16, 42, 0.3), 0 0 0 3px rgba(178, 136, 84, 0.2);
+  transform: translateY(-1px);
+}
+
+.market-generate-ficha-btn:focus-visible {
+  outline: 2px solid #e1bd80;
+  outline-offset: 2px;
+}
+
+.market-generate-ficha-btn:disabled {
+  cursor: not-allowed;
+  filter: saturate(0.55);
+  opacity: 0.64;
+}
+
+.document-upload-title > .section-help {
+  display: block;
+  flex-basis: 100%;
+  width: 100%;
+  margin: 0.45rem 0 0;
+  font-size: 0.78rem;
+  line-height: 1.5;
+  font-weight: 500;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .market-generate-ficha-btn { transition: none; }
+}
+
+[data-doc-card$="docSuficiencia"] .document-upload-title {
+  display: block;
+}
+[data-doc-card$="docSuficiencia"] .document-upload-title > b {
+  display: block;
+}
+#modalActions:has(.market-generate-ficha-btn) {
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: stretch;
+}
+.market-generate-ficha-btn { text-align: left; }
+.market-generate-ficha-btn::before { flex-shrink: 0; }

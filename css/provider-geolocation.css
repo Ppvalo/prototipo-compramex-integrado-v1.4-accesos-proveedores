@@ -1,0 +1,26 @@
+/* Controles adicionales de ubicación: preservan la paleta y tipografía existentes. */
+.provider-geo{margin:22px 0 30px;padding:20px;border:1px solid var(--line,#dedede);border-radius:12px;background:#fff}
+.provider-geo h4{margin:0 0 8px;color:var(--wine,#7a1737);font-size:16px}
+.geo-search{display:flex;align-items:flex-end;gap:12px;margin:18px 0 10px}
+.geo-search label{flex:1;min-width:0}
+.geo-search .btn{flex-shrink:0;min-height:44px}
+.geo-search-info{display:block;margin:8px 0 12px;color:#5c626a;line-height:1.6}
+.geo-search-info select{display:block;max-width:100%;margin-top:8px}
+.provider-map{height:320px;width:100%;border:1px solid #d8d5d3;border-radius:8px;z-index:0}
+.provider-map .leaflet-control-attribution{font-size:10px}
+.provider-map .leaflet-marker-icon:focus-visible{outline:3px solid #7a1737;outline-offset:5px}
+.geo-footer{display:flex;align-items:center;flex-wrap:wrap;gap:14px;margin-top:14px}
+.geo-status{font-size:13px;line-height:1.5;padding:8px 12px;border-radius:8px;display:inline-block}
+.geo-status.pending{background:#fff4df;color:#80510a}
+.geo-status.confirmed{background:#e4f5eb;color:#16643d}
+.geo-coordinates{display:flex;flex-wrap:wrap;gap:16px;margin:14px 0 8px;color:#474b52;font-size:13px}
+.geo-coordinates output{font-variant-numeric:tabular-nums}
+.geo-same-question{border:1px solid #dedede;border-radius:10px;padding:16px 18px;margin:30px 0 18px}
+.geo-same-question legend{font-weight:700;font-size:14px;color:#5f102a;padding:0 6px}
+.geo-same-question label{display:inline-flex;margin-right:24px}
+.geo-linked{margin:20px 0;padding:18px;border-left:4px solid #1f7a4d;background:#f4faf6;border-radius:8px}
+.geo-linked>strong:first-child{color:#16643d}
+.geo-linked p{margin:8px 0 12px;font-size:13px}
+.geo-linked .micro{display:block}
+#providerForm input[readonly]{background:#f7f7f5;color:#5c626a}
+@media(max-width:700px){.provider-geo{padding:14px}.geo-search{flex-direction:column;align-items:stretch}.provider-map{height:280px}.geo-footer{align-items:flex-start;flex-direction:column}}

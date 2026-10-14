@@ -179,3 +179,27 @@
   .document-record-action{grid-column:2}
   .document-upload-title{min-height:0}
 }
+
+/* Expediente de proveedores 2026: controles condicionales y archivos por requisito. */
+.doc-context-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px;width:100%;margin-bottom:18px}
+.doc-choice{display:flex;flex-direction:column;gap:6px;font-size:.82rem;font-weight:700;color:var(--ink)}
+.doc-choice select{width:100%;min-height:40px;border:1px solid var(--line);border-radius:8px;background:#fff;padding:8px;font:inherit;color:var(--ink)}
+.doc-row-2026{display:block;padding:16px}
+.doc-row-2026 .doc-row-main{min-width:0}
+.doc-row-2026 .doc-title-line strong{font-size:.94rem}
+.doc-row-note{color:var(--muted);font-size:.79rem;line-height:1.48;margin-top:6px}
+.doc-slot-list{display:grid;gap:9px;margin-top:13px}
+.doc-slot{border:1px solid var(--line);border-radius:9px;padding:10px;background:#fcfbfa}
+.doc-slot-head{display:flex;justify-content:space-between;align-items:flex-start;gap:9px;flex-wrap:wrap;margin-bottom:7px}
+.doc-slot-head b{font-size:.79rem}
+.doc-slot-head small{font-size:.72rem}
+.doc-slot .doc-actions{flex-wrap:wrap}
+.doc-file-entry{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:7px;font-size:.77rem;overflow-wrap:anywhere}
+.doc-file-entry span{flex:1;min-width:180px}
+.file-btn:focus-within{outline:2px solid var(--wine);outline-offset:2px}
+.authority-slot{display:flex;align-items:center;gap:7px;flex-wrap:wrap;margin-top:7px;font-size:.76rem}
+.authority-slot .btn{max-width:100%;white-space:normal;overflow-wrap:anywhere}
+@media(max-width:720px){.doc-context-grid{grid-template-columns:1fr}.doc-slot-head{flex-direction:column}}
+.doc-list + .checklist .checkline,.docs-layout .checkline{gap:12px;align-items:flex-start}
+.docs-layout .checkline span{flex:1;min-width:0;overflow-wrap:anywhere;line-height:1.4}
+.docs-layout .checkline b{flex:none;white-space:nowrap}

@@ -54,6 +54,8 @@
 
 
   const SUFFICIENCY_DOCUMENT = {id:'docSuficiencia',label:'Oficio de Dictamen de Suficiencia Presupuestal',required:true};
+  const AREA_TO_CA_REMITTAL = 'La solicitud ha sido remitida a la Coordinación Administrativa para su revisión y, en su caso, envío a la Oficialía Mayor.';
+  const CA_TO_OM_REMITTAL = 'La solicitud ha sido remitida a la Oficialía Mayor para su atención y continuidad del proceso.';
   const REQUEST_DOCUMENTS = [
     {id:'docFicha',label:'Ficha técnica o documento que permita identificar el bien/servicio',required:true},
     {id:'docCatalogo',label:'Folleto, catálogo, manual u otro soporte',required:false},
@@ -193,18 +195,19 @@
   function exitCatalogSession(){state.active=false;save();clearCatalogModal();}
   function openModal(title,wide=false){ modalTitle.textContent=title; modal.classList.remove('hidden'); modal.classList.toggle('wide-modal',wide); }
   function toast(msg){ modalBody.innerHTML=`<p>${esc(msg)}</p>`; modalActions.innerHTML='<button class="btn btn-primary" data-cat-ok type="button">Aceptar</button>'; openModal('Información'); $('[data-cat-ok]',modalActions).onclick=closeModal; }
+  function showSubmissionMessage(message,afterClose){ modalBody.innerHTML=`<p>${esc(message)}</p>`; modalActions.innerHTML='<button class="btn btn-primary" data-remitted-ok type="button">Aceptar</button>'; openModal('Solicitud remitida'); $('[data-remitted-ok]',modalActions).onclick=()=>{closeModal();if(typeof afterClose==='function')afterClose();}; }
   function header(k,t,p){ pageHeader.innerHTML=`<span class="kicker">${esc(k)}</span><h2>${esc(t)}</h2><p>${esc(p)}</p>`; }
   function actor(){ return (state.actorName||ROLES[state.role]||'Sistema').trim(); }
   function audit(action,folio,detail='',r=null,document=''){
     const old=r?.previousState||r?.state||'', now=r?.state||'';
     const entry={when:stamp(),user:actor(),role:ROLES[state.role]||'Sistema',action,folio,detail,previousState:old,newState:now,observation:detail,document};
     state.audit.push(entry);if(r){(r.timeline||=[]).push({when:entry.when,label:action,detail:`${actor()} · ${detail}`});}
-    save();return entry;
+    const persisted=save();return {...entry,persisted};
   }
   function transition(r,next,action,detail='',document=''){
     const before=r.state;r.state=next;
     const entry={when:stamp(),user:actor(),role:ROLES[state.role],action,folio:r.folio,detail,previousState:before,newState:next,observation:detail,document};
-    state.audit.push(entry);(r.timeline||=[]).push({when:entry.when,label:action,detail:`${actor()} · ${before} → ${next}${detail?' · '+detail:''}`});save();
+    state.audit.push(entry);(r.timeline||=[]).push({when:entry.when,label:action,detail:`${actor()} · ${before} → ${next}${detail?' · '+detail:''}`});return save();
   }
   function addAudit(action,folio,detail,user=actor()){
     state.audit.push({when:stamp(),user,role:ROLES[state.role]||'Sistema',action,folio,detail,previousState:'',newState:'',observation:detail,document:''});save();
@@ -226,7 +229,7 @@
     return true;
   }
   function roleCanSeeStudy(s){return roleCanSee(requestByStudy(s));}
-  function isDocumentAvailable(d){return !!(d?.present&&d?.filename&&d?.url&&validSignature(d.url,d.filename));}
+  function isDocumentAvailable(d){return !!((d?.id===SUFFICIENCY_DOCUMENT.id||d?.present)&&d?.filename&&d?.url&&validSignature(d.url,d.filename));}
   function docsOfItem(r,i){
     if(Array.isArray(i?.documentDetails))return i.documentDetails;
     // Compatibilidad con solicitudes antiguas de un solo elemento.
@@ -249,7 +252,7 @@
   }
   function readFile(file){return new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(reader.result);reader.onerror=reject;reader.readAsDataURL(file);});}
   async function enrichDocuments(form,docs,prefix=''){
-    for(const d of docs){const file=form.elements[`${prefix}${d.id}File`]?.files?.[0];if(file){if(!validFile(file))throw Error(`Formato no válido, archivo vacío o mayor a 1.5 MB: ${file.name}. Sólo PDF, PNG, JPG o JPEG.`);d.url=await readFile(file);if(!validSignature(d.url,file.name))throw Error(`El contenido del archivo ${file.name} no corresponde a un PDF, PNG o JPG válido.`);d.version=1;d.history=[{when:stamp(),user:actor(),filename:file.name,version:1,reason:'Carga inicial'}];}}
+    for(const d of docs){const file=form.elements[`${prefix}${d.id}File`]?.files?.[0];if(file){if(!validFile(file))throw Error(`Formato no válido, archivo vacío o mayor a 1.5 MB: ${file.name}. Sólo PDF, PNG, JPG o JPEG.`);d.url=await readFile(file);if(!validSignature(d.url,file.name))throw Error(`El contenido del archivo ${file.name} no corresponde a un PDF, PNG o JPG válido.`);if(isSufficiencyDefinition(d))d.present=true;d.size=file.size;d.status='Cargado';d.version=1;d.history=[{when:stamp(),user:actor(),filename:file.name,version:1,reason:'Carga inicial'}];}}
     return docs;
   }
   function previewDocument(d){
@@ -281,7 +284,7 @@
   function openAccess(){
     state.active=false; ensureRoleAllowed(); save(); clearCatalogModal(); showOnly('access');
     $('#accessKicker').textContent='COMPRAMEX · Acceso institucional';
-    $('#accessTitle').textContent='Catálogo de Bienes y Servicios y Estudios de Mercado';
+    $('#accessTitle').textContent='Catálogo y Estudios de Mercado';
     $('#accessDescription').textContent='Seleccione primero la dependencia y después el rol institucional. Todas las dependencias cuentan con Área Requirente / Usuario y Coordinación Administrativa; la Oficialía Mayor incorpora además los perfiles especializados del Estudio de Mercado.';
     accessPanel.innerHTML=`
       <div class="access-hierarchy"><div><span>1</span><b>Dependencia</b><small>Nivel superior de adscripción</small></div><i>→</i><div><span>2</span><b>Rol institucional</b><small>Permisos según dependencia</small></div></div>
@@ -405,13 +408,14 @@
   }
 
   function documentSet(){return [...REQUEST_DOCUMENTS,{id:'docPobalin',label:'Dictamen Técnico POBALIN 059',required:false}];}
+  function isSufficiencyDefinition(definition){return definition?.id===SUFFICIENCY_DOCUMENT.id;}
   function requestDocumentsEditorHtml(existing=[],prefix='',rules={},definitions=documentSet()){
-    return `<div class="document-upload-grid">${definitions.map(d=>{const old=existing.find(x=>x.id===d.id),notApplicable=d.id==='docPobalin'&&rules.pobalin!=='Sí'||['docFicha','docSpecs'].includes(d.id)&&rules.art28Rule==='No aplica';return `<article class="document-upload-card ${notApplicable?'hidden':''}" data-doc-card="${prefix}${d.id}">
-      <div class="document-upload-title"><b>${esc(d.label)}</b>${d.required?'<span class="required-chip">Obligatorio cuando aplica</span>':'<span class="optional-chip">Condicional / complementario</span>'}</div>
-      <div class="document-presence"><span>¿Se cuenta con el documento?</span><label class="presence-option"><input type="radio" name="${prefix}${d.id}Status" value="si" ${old?.present?'checked':''}> Sí</label><label class="presence-option"><input type="radio" name="${prefix}${d.id}Status" value="no" ${old?.present?'':'checked'}> No</label></div>
+    return `<div class="document-upload-grid">${definitions.map(d=>{const old=existing.find(x=>x.id===d.id),sufficiency=isSufficiencyDefinition(d),notApplicable=d.id==='docPobalin'&&rules.pobalin!=='Sí'||['docFicha','docSpecs'].includes(d.id)&&rules.art28Rule==='No aplica';return `<article class="document-upload-card ${notApplicable?'hidden':''}" data-doc-card="${prefix}${d.id}">
+      <div class="document-upload-title"><b>${esc(d.label)}</b>${sufficiency?'<small class="section-help">Documento obligatorio que debe presentar para estar en condiciones de iniciar la solicitud.</small>':d.required?'<span class="required-chip">Requerido según regla</span>':'<span class="optional-chip">Condicional / complementario</span>'}</div>
+      ${sufficiency?'':`<div class="document-presence"><span>¿Se cuenta con el documento?</span><label class="presence-option"><input type="radio" name="${prefix}${d.id}Status" value="si" ${old?.present?'checked':''}> Sí</label><label class="presence-option"><input type="radio" name="${prefix}${d.id}Status" value="no" ${old?.present?'':'checked'}> No</label></div>`}
       <label class="document-file-control">Subir documento<input data-doc-file="${d.id}" type="file" name="${prefix}${d.id}File" accept=".pdf,.png,.jpg,.jpeg"></label><small class="file-selection" data-file-label>${esc(old?.filename||'Sin archivo seleccionado')}</small></article>`}).join('')}</div>`;
   }
-  function collectRequestDocuments(form,prefix='',definitions=documentSet()){return definitions.map(d=>{const file=form.elements[`${prefix}${d.id}File`]?.files?.[0];return {id:d.id,label:d.label,present:form.elements[`${prefix}${d.id}Status`]?.value==='si',required:d.required,filename:file?.name||'',size:file?.size||0};});}
+  function collectRequestDocuments(form,prefix='',definitions=documentSet()){return definitions.map(d=>{const file=form.elements[`${prefix}${d.id}File`]?.files?.[0],sufficiency=isSufficiencyDefinition(d);return {id:d.id,label:d.label,present:sufficiency?!!file:form.elements[`${prefix}${d.id}Status`]?.value==='si',required:d.required,filename:file?.name||'',size:file?.size||0};});}
   function documentRowHtml(def,d,index,applicable,notApplicable=false){
     return `<div class="request-document-row document-record"><div class="document-record-description"><b>${esc(def.label)}</b><small>${esc(d.filename||'Sin archivo cargado')}${applicable?' · Obligatorio':''}</small>${(d.history||[]).filter(h=>h.previousUrl).map((h,v)=>`<small>Versión anterior ${v+1} · ${esc(h.when)} · ${esc(h.user)} · ${esc(h.reason)} <button type="button" class="link-btn" data-view-old-document="${index}:${(d.history||[]).indexOf(h)}">Ver versión anterior</button></small>`).join('')}</div><div class="document-record-status">${badge(notApplicable?'No aplica':isDocumentAvailable(d)?'Cargado':applicable?'Pendiente':'Opcional')}</div><div class="document-record-action">${d.url&&!notApplicable?`<button class="btn btn-ghost btn-small" data-view-document="${index}">Ver documento</button>`:''}</div></div>`;
   }
@@ -470,7 +474,7 @@
     const bindRow=row=>{const updateConditions=()=>{const pob=row.querySelector('[data-item-pobalin]').value,art=row.querySelector('[data-item-art28]').value;row.querySelector('[data-doc-card$="docPobalin"]').classList.toggle('hidden',pob!=='Sí');['docFicha','docSpecs'].forEach(k=>row.querySelector(`[data-doc-card$="${k}"]`).classList.toggle('hidden',art==='No aplica'));};row.querySelector('[data-item-pobalin]').onchange=updateConditions;row.querySelector('[data-item-art28]').onchange=updateConditions;updateConditions();row.querySelector('[data-item-key]').onchange=()=>{row.querySelector('[data-item-description]').value='';syncItemRow(row);};row.querySelector('[data-item-type]').onchange=()=>syncItemRow(row);row.querySelector('[data-item-action]').onchange=()=>syncItemRow(row);row.querySelector('[data-remove-item]')?.addEventListener('click',()=>row.remove());syncItemRow(row);};
     $$('[data-item-row]',form).forEach(bindRow);
     $('#addRequestItem').onclick=()=>{const holder=$('#requestItemRows'),box=document.createElement('div');box.innerHTML=itemEditorHtml(next++);const row=box.firstElementChild;holder.appendChild(row);bindRow(row);};
-    form.addEventListener('change',e=>{const input=e.target.closest?.('[data-doc-file]');if(!input||!form.contains(input))return;const file=input.files?.[0],card=input.closest('[data-doc-card]');if(file&&!validFile(file)){input.value='';card.querySelector('[data-file-label]').textContent='Sin archivo seleccionado';toast('Formato no válido o archivo mayor a 1.5 MB. Sólo se aceptan PDF, PNG, JPG y JPEG.');return;}if(file)card.querySelector('input[value="si"]').checked=true;card.querySelector('[data-file-label]').textContent=file?.name||'Sin archivo seleccionado';});
+    form.addEventListener('change',e=>{const input=e.target.closest?.('[data-doc-file]');if(!input||!form.contains(input))return;const file=input.files?.[0],card=input.closest('[data-doc-card]');if(file&&!validFile(file)){input.value='';card.querySelector('[data-file-label]').textContent='Sin archivo seleccionado';toast('Formato no válido o archivo mayor a 1.5 MB. Sólo se aceptan PDF, PNG, JPG y JPEG.');return;}const presence=card.querySelector('input[value="si"]');if(file&&presence)presence.checked=true;card.querySelector('[data-file-label]').textContent=file?.name||'Sin archivo seleccionado';});
     $('[data-back-requests]',form).onclick=()=>route('cat-requests');form.onsubmit=e=>{e.preventDefault();submitRequest(form);};
   }
   async function submitRequest(form){
@@ -482,16 +486,16 @@
     const studyNeeded=items.some(i=>!i.movement.startsWith('Uso de'));
     if(items.some(i=>i.art28Rule==='No aplica'&&!i.art28Reason))return toast('Justifique la no aplicación del Art. 28 para cada elemento correspondiente.');
     const sufficiencyDocument=collectRequestDocuments(form,'request-',[SUFFICIENCY_DOCUMENT])[0];
-    if(sufficiencyDocument.present&&!sufficiencyDocument.filename)return toast('El Dictamen de Suficiencia Presupuestal marcado Sí debe tener archivo cargado.');
     try{await enrichDocuments(form,[sufficiencyDocument],'request-');}catch(err){return toast(err.message);}
+    if(!isDocumentAvailable(sufficiencyDocument))return toast('Debe cargar el Oficio de Dictamen de Suficiencia Presupuestal para continuar.');
     for(const i of items){if(i.documentDetails.some(d=>d.present&&!d.filename))return toast(`Un documento marcado Sí para ${i.description} debe tener archivo cargado.`);
       try{i.documentDetails=await enrichDocuments(form,i.documentDetails,`${$$('[data-item-row]',form)[Number(i.id)-1].dataset.itemRow}-`);}catch(err){return toast(err.message);}}
     if(state.role==='area'){const missing=missingDocuments({items,sufficiencyDocument});if(missing.length)return toast(`No puede enviar a Coordinación Administrativa: ${missing.map(missingLabel).join('; ')}`);}
     const n=Math.max(0,...state.requests.map(r=>Number(String(r.folio||'').match(/(\d+)$/)?.[1]||0)))+1;
     const folio=`CAT-${new Date().getFullYear()}-${String(n).padStart(4,'0')}`,first=items[0],isCa=state.role==='ca';
     const r={folio,owner:actor(),dependency:activeDependency().name,requestingArea:String(f.get('requestingArea')||'').trim(),adminCoord:String(f.get('adminCoord')),origin:isCa?'Coordinación Administrativa · inicio directo':'Área requirente / usuaria',unit:first.unit,movement:first.movement,itemType:first.type,description:first.description,classification:first.partida,unitMeasure:first.unit,quantity:first.quantity,priority:String(f.get('priority')),giro,justification:String(f.get('justification')),items,sufficiencyDocument,documents:[sufficiencyDocument,...items.flatMap(i=>i.documentDetails)].filter(isDocumentAvailable).length,pobalinStatus:items.some(i=>i.pobalin==='Sí')?'Pendiente de revisión':'No aplica',art28:'Pendiente',state:studyNeeded?'Enviado a Coordinación Administrativa':'Concluida',caStage:studyNeeded?(isCa?'validation':'received'):'sent',sentToOfficialia:false,investigator:'',created:new Date().toISOString().slice(0,10),version:1,notes:'',duplicateHint:first.key||'',study:'',timeline:[],catalogUpdated:!studyNeeded};
-    items.forEach(i=>{if(!i.key)i.verificationKey=`PMCP-${folio}-${i.id}`;});state.requests.unshift(r);state.selectedRequest=folio;state.prefillCatalogKey='';transition(r,r.state,studyNeeded?(isCa?'Inicio directo por Coordinación Administrativa':'Solicitud enviada a Coordinación Administrativa'):'Uso de bien o servicio vigente',`${items.length} elemento(s) · ${giro}`);
-    if(!save()){state.requests.shift();return;}openRequestDetail(folio);
+    items.forEach(i=>{if(!i.key)i.verificationKey=`PMCP-${folio}-${i.id}`;});state.requests.unshift(r);state.selectedRequest=folio;state.prefillCatalogKey='';const persisted=transition(r,r.state,studyNeeded?(isCa?'Inicio directo por Coordinación Administrativa':'Solicitud enviada a Coordinación Administrativa'):'Uso de bien o servicio vigente',`${items.length} elemento(s) · ${giro}`);
+    if(!persisted){state.requests.shift();return;}if(isCa||!studyNeeded)openRequestDetail(folio);else showSubmissionMessage(AREA_TO_CA_REMITTAL,()=>openRequestDetail(folio));
   }
 
   function caBucket(r){
@@ -606,15 +610,15 @@
       const missing=missingDocuments({...r,items:reviewed});if(missing.length)return toast(`No puede avanzar: ${missing.map(missingLabel).join('; ')}. Devuelva la solicitud para corrección.`);
       if(!$('#caCheckItems').checked||!$('#caCheckDocs').checked)return toast('Confirme la revisión de bienes/servicios y documentación antes del envío.');
       r.items=reviewed;r.art28=reviewed.every(i=>i.art28Rule==='No aplica')?'No aplica':'Pendiente';r.caStage='sent';r.sentToOfficialia=true;r.notes='';r.pobalinStatus=reviewed.some(i=>i.pobalin==='Sí')?'En revisión':'No aplica';
-      if(r.investigator){transition(r,'Asignada','Subsanación reenviada al analista original',r.investigator);audit('Reasignación automática',r.folio,`Analista original: ${r.investigator}`,r);}else transition(r,'Recibida','Solicitud enviada correctamente','Validada por Coordinación Administrativa y recibida en Oficialía Mayor');closeModal();caQueue='sent';renderRequests();
+      let persisted;if(r.investigator){persisted=transition(r,'Asignada','Subsanación reenviada al analista original',r.investigator);if(persisted)persisted=audit('Reasignación automática',r.folio,`Analista original: ${r.investigator}`,r).persisted;}else persisted=transition(r,'Recibida','Solicitud enviada correctamente','Validada por Coordinación Administrativa y recibida en Oficialía Mayor');if(!persisted)return;closeModal();caQueue='sent';renderRequests();showSubmissionMessage(CA_TO_OM_REMITTAL);
     };
   }
   async function updateRemedyDocument(def,oldDoc,card,reason){
-    const file=$('[data-doc-file]',card)?.files?.[0];
+    const file=$('[data-doc-file]',card)?.files?.[0],sufficiency=isSufficiencyDefinition(def),oldAvailable=isDocumentAvailable(oldDoc);
     if(file&&!validFile(file))throw Error('Sólo PDF, PNG, JPG o JPEG no vacíos (máx. 1.5 MB).');
-    const d={...oldDoc,present:$('input[value="si"]',card).checked};
+    const presence=$('input[value="si"]',card),d={...oldDoc,present:sufficiency?oldAvailable:(presence?presence.checked:oldAvailable)};
     if(file){const url=await readFile(file);if(!validSignature(url,file.name))throw Error(`El contenido de ${file.name} no corresponde a su formato declarado.`);
-      d.history=[...(d.history||[]),{when:stamp(),user:actor(),filename:file.name,version:(d.version||1)+1,reason,previousUrl:d.url||''}];d.filename=file.name;d.url=url;d.size=file.size;d.version=(d.version||1)+1;d.status='Cargado';}
+      if(sufficiency)d.present=true;d.history=[...(d.history||[]),{when:stamp(),user:actor(),filename:file.name,version:(d.version||1)+1,reason,previousUrl:d.url||''}];d.filename=file.name;d.url=url;d.size=file.size;d.version=(d.version||1)+1;d.status='Cargado';}
     return d;
   }
   function openRemedyModal(r){if(!roleCanSee(r)||r.state!=='Requiere información'||!['area','ca'].includes(state.role))return;
@@ -622,7 +626,7 @@
     modalActions.innerHTML='<button class="btn btn-ghost" data-close>Cancelar</button><button class="btn btn-primary" data-remedy-save>Reenviar correcciones a Coordinación Administrativa</button>';openModal(`Subsanación ${r.folio}`,true);
     $('[data-close]',modalActions).onclick=()=>openRequestDetail(r.folio);
     $$('[data-remedy-row]',modalBody).forEach(row=>{const update=()=>{row.querySelector('[data-doc-card$="docPobalin"]').classList.toggle('hidden',row.querySelector('[data-remedy-pobalin]').value!=='Sí');['docFicha','docSpecs'].forEach(k=>row.querySelector(`[data-doc-card$="${k}"]`).classList.toggle('hidden',row.querySelector('[data-remedy-art28]').value==='No aplica'));};row.querySelector('[data-remedy-pobalin]').onchange=update;row.querySelector('[data-remedy-art28]').onchange=update;update();});
-    $$('[data-doc-file]',modalBody).forEach(input=>input.onchange=()=>{const file=input.files?.[0];if(file&&!validFile(file)){input.value='';return toast('Formato no válido o archivo mayor a 1.5 MB. Sólo PDF, PNG, JPG y JPEG.');}if(file){input.closest('[data-doc-card]').querySelector('input[value="si"]').checked=true;input.closest('[data-doc-card]').querySelector('[data-file-label]').textContent=file.name;}});
+    $$('[data-doc-file]',modalBody).forEach(input=>input.onchange=()=>{const file=input.files?.[0];if(file&&!validFile(file)){input.value='';return toast('Formato no válido o archivo mayor a 1.5 MB. Sólo PDF, PNG, JPG y JPEG.');}if(file){const presence=input.closest('[data-doc-card]').querySelector('input[value="si"]');if(presence)presence.checked=true;input.closest('[data-doc-card]').querySelector('[data-file-label]').textContent=file.name;}});
     $('[data-remedy-save]',modalActions).onclick=async()=>{if(!roleCanSee(r)||r.state!=='Requiere información'||!['area','ca'].includes(state.role))return toast('La solicitud ya no está en subsanación.');const reason=$('#remedyNotes').value.trim();if(!reason)return toast('Indique cómo atendió las observaciones.');
       try{
         const sufficiencyDocument=await updateRemedyDocument(SUFFICIENCY_DOCUMENT,requestDocument(r),$('[data-doc-card="request-docSuficiencia"]',modalBody),reason);
@@ -630,7 +634,7 @@
           const documentDetails=[];for(const def of documentSet()){const oldDoc=docsOfItem(r,oldItem).find(d=>d.id===def.id)||{...def,history:[]},card=$(`[data-doc-card="${n}-${def.id}"]`,row);documentDetails.push(await updateRemedyDocument(def,oldDoc,card,reason));}
           updated.push({...oldItem,pobalin,art28Rule,art28Reason,documentDetails});}
         const missing=missingDocuments({...r,items:updated,sufficiencyDocument});if(missing.length)return toast(`No puede reenviar: ${missing.map(missingLabel).join('; ')}`);
-        r.items=updated;r.sufficiencyDocument=sufficiencyDocument;r.documents=[sufficiencyDocument,...updated.flatMap(i=>i.documentDetails)].filter(isDocumentAvailable).length;r.version=(r.version||1)+1;r.art28=updated.every(i=>i.art28Rule==='No aplica')?'No aplica':'Pendiente';r.pobalinStatus=updated.some(i=>i.pobalin==='Sí')?'Pendiente de revisión':'No aplica';r.sentToOfficialia=false;r.caStage='received';r.notes='';transition(r,'Enviado a Coordinación Administrativa','Correcciones reenviadas',reason);closeModal();renderRequests();
+        r.items=updated;r.sufficiencyDocument=sufficiencyDocument;r.documents=[sufficiencyDocument,...updated.flatMap(i=>i.documentDetails)].filter(isDocumentAvailable).length;r.version=(r.version||1)+1;r.art28=updated.every(i=>i.art28Rule==='No aplica')?'No aplica':'Pendiente';r.pobalinStatus=updated.some(i=>i.pobalin==='Sí')?'Pendiente de revisión':'No aplica';r.sentToOfficialia=false;r.caStage='received';r.notes='';const persisted=transition(r,'Enviado a Coordinación Administrativa','Correcciones reenviadas',reason);if(!persisted)return;closeModal();renderRequests();showSubmissionMessage(AREA_TO_CA_REMITTAL,()=>openRequestDetail(r.folio));
       }catch(err){toast(err.message||'No se pudo leer el documento seleccionado.');}
     };
   }
@@ -658,6 +662,7 @@
     $$('[data-open-study]',content).forEach(b=>b.onclick=()=>openStudyDetail(b.dataset.openStudy));
   }
   function ensureResults(s){const r=requestByStudy(s);s.itemResults||={};for(const i of itemsOf(r)){s.itemResults[i.id]||={sources:[],price:i.movement.startsWith('Uso de')?i.price:s.reference,validUntil:i.validUntil||'',result:i.movement.startsWith('Uso de')?'Uso de registro vigente':'Pendiente'};}return s.itemResults;}
+  function studyTechniques(s){return Array.isArray(s?.techniques)?s.techniques.filter(Boolean):[];}
   function sourcesFor(s,i){return (s.sources||[]).filter(x=>(x.itemId||'1')===i.id);}
   function eligibleFor(s,i){return sourcesFor(s,i).filter(x=>x.eligible&&x.quoted);}
   function documentContext(r,s,item=null,communicationType=''){
@@ -666,12 +671,12 @@
   }
   function openStudyDetail(folio){
     const s=study(folio);if(!s||!roleCanSeeStudy(s)){toast('No tiene acceso a este Estudio de Mercado.');return;}
-    setSelectedStudy(folio);const r=requestByStudy(s),items=itemsOf(r),results=ensureResults(s),activeItems=items.filter(i=>!i.movement.startsWith('Uso de'));
+    setSelectedStudy(folio);const r=requestByStudy(s),items=itemsOf(r),results=ensureResults(s),activeItems=items.filter(i=>!i.movement.startsWith('Uso de')),selectedTechniques=studyTechniques(s);
     const ready=activeItems.every(i=>eligibleFor(s,i).length>=2||results[i.id].exception),priced=activeItems.every(i=>Number.isFinite(Number(results[i.id].price))&&Number(results[i.id].price)>0&&!!results[i.id].validUntil);
     const actions=[];
     if(state.role==='investigador'&&!s.signatures?.elaboro){
       if(!s.reference)actions.push('<button class="btn btn-secondary" data-techniques>Definir técnicas</button>');
-      if(!s.reference)actions.push('<button class="btn btn-secondary" data-add-source>Agregar fuente</button>');
+      if(!s.reference)actions.push(`<button class="btn btn-secondary" data-add-source ${studyTechniques(s).length?'':'disabled title="Defina primero una técnica de estudio de mercado"'}>Agregar fuente</button>`);
       if(s.sources.length&&!s.validatedSources)actions.push('<button class="btn btn-secondary" data-validate-sources>Validar fuentes</button>');
       if(s.validatedSources&&ready&&!priced)actions.push('<button class="btn btn-primary" data-calc-ref>Calcular precio</button>');
       if(s.validatedSources&&activeItems.some(i=>eligibleFor(s,i).length<2&&!results[i.id].exception))actions.push('<button class="btn btn-warning" data-exception>Excepción Art. 18</button>');
@@ -686,11 +691,11 @@
     const approved=allApprovals(s),generatedItems=itemDocuments(s);
     if(state.role==='titular'&&!s.logGenerated)actions.push(`<button class="btn btn-primary" data-generate-log ${approved?'':'disabled title="Pendiente de autorizaciones hasta Dirección"'}>Generar Bitácora</button>`);
     if(s.logGenerated)actions.push(`<button class="btn btn-secondary" data-doc="log" ${approved?'':'disabled title="Pendiente de autorizaciones hasta Dirección"'}>Imprimir Bitácora</button>`);
-    if(['investigador','titular'].includes(state.role))items.forEach(i=>{if(!generatedItems[i.id])actions.push(`<button class="btn btn-secondary" data-generate-item="${esc(i.id)}" ${approved?'':'disabled title="Pendiente de autorizaciones hasta Dirección"'}>Generar Ficha de Estudio de Mercado · ${esc(i.id)}</button>`);});
+    if(['investigador','titular'].includes(state.role))items.forEach(i=>{if(!generatedItems[i.id])actions.push(`<button class="btn btn-secondary market-generate-ficha-btn" data-generate-item="${esc(i.id)}" ${approved?'':'disabled title="Pendiente de autorizaciones hasta Dirección"'}>Generar Ficha de Estudio de Mercado · ${esc(i.id)}</button>`);});
     items.forEach(i=>{if(generatedItems[i.id])actions.push(`<button class="btn btn-ghost" data-item-doc="${esc(i.id)}" ${approved?'':'disabled title="Pendiente de autorizaciones hasta Dirección"'}>Imprimir Ficha de Estudio de Mercado · ${esc(i.id)}</button>`);});
     if(r.resultDocument?.id)actions.push('<button class="btn btn-secondary" data-doc="result">Dictamen / Oficio de Resultado</button>');
     modalBody.innerHTML=`<div class="study-summary"><div><small>Folio</small><strong>${esc(s.folio)}</strong></div><div><small>Solicitud origen</small><strong>${esc(s.request)}</strong></div><div><small>Investigador</small><strong>${esc(s.investigator)}</strong></div><div><small>Estado</small><strong>${esc(s.state)}</strong></div><div><small>Elementos</small><strong>${items.length}</strong></div><div><small>Fuentes validadas</small><strong>${s.validatedSources?'Completado':'Pendiente'}</strong></div><div><small>Cálculo de precio</small><strong>${s.reference?'Completado':'Pendiente'}</strong></div><div><small>Oficio de resultado</small><strong>${esc(r.resultDocument?.id||'Pendiente')}</strong></div></div>
-      <div class="subhead">Técnicas de investigación</div><div class="technique-catalog">${MARKET_TECHNIQUES.map((t,n)=>`<div class="technique-item ${s.techniques.includes(t)?'selected':''}"><span>${s.techniques.includes(t)?'✓':String.fromCharCode(97+n)+')'}</span><b>${esc(t)}</b></div>`).join('')}</div>
+      <div class="subhead">Técnicas de investigación</div><div class="technique-catalog">${MARKET_TECHNIQUES.map((t,n)=>`<div class="technique-item ${selectedTechniques.includes(t)?'selected':''}"><span>${selectedTechniques.includes(t)?'✓':String.fromCharCode(97+n)+')'}</span><b>${esc(t)}</b></div>`).join('')}</div>
       <div class="subhead">Resultados por bien o servicio</div>${items.map(i=>`<article class="card mt24"><h3>${esc(i.description)} · ${esc(i.key||'Nueva alta')}</h3><div class="detail-grid"><div><small>Partida / unidad</small><strong>${esc(i.partida)} · ${esc(i.unit)}</strong></div><div><small>Movimiento / situación</small><strong>${esc(i.movement)} · ${esc(i.situation)}</strong></div><div><small>Precio de mercado</small><strong>${money(results[i.id].price)}</strong></div><div><small>Vigencia</small><strong>${esc(results[i.id].validUntil||'Pendiente')}</strong></div><div><small>Resultado</small><strong>${esc(results[i.id].result)}</strong></div><div><small>Fuentes consultadas</small><strong>${sourcesFor(s,i).length}</strong></div></div>${sourcesTable(s,i)}</article>`).join('')}
       <div class="subhead">Documentación de origen</div>${requestDocumentsHtml(r)}<div class="subhead">Documentos derivados y firmas</div>${documentStatusHtml(s)}
       <div class="subhead">Historial</div><div class="timeline">${s.history.map((h,n)=>`<div class="timeline-item ${n===s.history.length-1?'current':'done'}"><span class="timeline-dot"></span><div><strong>${esc(h.label)}</strong><small>${esc(h.when)}</small></div></div>`).join('')}</div>`;
@@ -698,7 +703,7 @@
     $('[data-close]',modalActions).onclick=closeModal;
     $('[data-techniques]',modalActions)?.addEventListener('click',()=>openTechniquesModal(s));
     $('[data-add-source]',modalActions)?.addEventListener('click',()=>openAddSource(s));
-    $('[data-validate-sources]',modalActions)?.addEventListener('click',()=>{if(state.role!=='investigador'||!roleCanSeeStudy(s)||s.signatures?.elaboro)return toast('La revisión de fuentes ya no está disponible.');if(s.validatedSources)return toast('Las fuentes ya fueron validadas para este conjunto de datos.');if(!s.techniques.length)return toast('Defina al menos una técnica antes de validar fuentes.');s.validatedSources=true;s.state='Fuentes validadas';s.history.push({when:stamp(),label:`Fuentes validadas por ${actor()}`});audit('Fuentes validadas correctamente',s.folio,`${s.sources.length} fuente(s), ${items.length} elemento(s)`,r);openStudyDetail(folio);});
+    $('[data-validate-sources]',modalActions)?.addEventListener('click',()=>{if(state.role!=='investigador'||!roleCanSeeStudy(s)||s.signatures?.elaboro)return toast('La revisión de fuentes ya no está disponible.');if(s.validatedSources)return toast('Las fuentes ya fueron validadas para este conjunto de datos.');if(!studyTechniques(s).length)return toast('Defina al menos una técnica antes de validar fuentes.');s.validatedSources=true;s.state='Fuentes validadas';s.history.push({when:stamp(),label:`Fuentes validadas por ${actor()}`});audit('Fuentes validadas correctamente',s.folio,`${s.sources.length} fuente(s), ${items.length} elemento(s)`,r);openStudyDetail(folio);});
     $('[data-calc-ref]',modalActions)?.addEventListener('click',()=>openCalculation(s));
     $('[data-exception]',modalActions)?.addEventListener('click',()=>openExceptionModal(s));
     $('[data-recalculate]',modalActions)?.addEventListener('click',()=>{if(state.role!=='investigador'||!roleCanSeeStudy(s)||s.signatures?.elaboro)return toast('No se puede recalcular tras registrar la primera autorización.');if(!confirm('¿Modificar fuentes y habilitar un nuevo cálculo explícito?'))return;s.reference=null;s.validatedSources=false;activeItems.forEach(i=>{results[i.id].price=null;results[i.id].validUntil='';results[i.id].result='Pendiente';});s.history.push({when:stamp(),label:'Recalculo habilitado explícitamente'});audit('Recalculo autorizado',s.folio,'Se conservan los valores históricos en la bitácora',r);openStudyDetail(folio);});
@@ -735,7 +740,7 @@
 
   function openTechniquesModal(s){
     if(state.role!=='investigador'||!roleCanSeeStudy(s)||s.signatures?.elaboro||s.reference)return toast('Las técnicas ya no pueden modificarse en esta etapa.');
-    modalBody.innerHTML=`<p>Seleccione una o más técnicas de investigación para el Estudio de Mercado.</p><div class="review-checklist technique-select">${MARKET_TECHNIQUES.map((t,i)=>`<label class="review-check"><input type="checkbox" data-market-tech value="${esc(t)}" ${s.techniques.includes(t)?'checked':''}><span><b>${String.fromCharCode(97+i)})</b> ${esc(t)}</span></label>`).join('')}</div>`;
+    modalBody.innerHTML=`<p>Seleccione una o más técnicas de investigación para el Estudio de Mercado.</p><div class="review-checklist technique-select">${MARKET_TECHNIQUES.map((t,i)=>`<label class="review-check"><input type="checkbox" data-market-tech value="${esc(t)}" ${studyTechniques(s).includes(t)?'checked':''}><span><b>${String.fromCharCode(97+i)})</b> ${esc(t)}</span></label>`).join('')}</div>`;
     modalActions.innerHTML='<button class="btn btn-secondary" data-close>Cancelar</button><button class="btn btn-primary" data-save-tech>Guardar técnicas</button>'; openModal('Técnicas de investigación',true);
     $('[data-close]',modalActions).onclick=()=>{closeModal();openStudyDetail(s.folio);};
     $('[data-save-tech]',modalActions).onclick=()=>{const selected=$$('[data-market-tech]',modalBody).filter(x=>x.checked).map(x=>x.value);if(!selected.length){toast('Seleccione al menos una técnica de investigación.');return;}s.techniques=selected;if(s.state==='En integración'){s.state='En investigación';s.code='EM-04';}s.history.push({when:stamp(),label:`Técnicas definidas: ${selected.join(' · ')}`});addAudit('Técnicas de investigación definidas',s.folio,selected.join(' | '));save();closeModal();openStudyDetail(s.folio);};
@@ -743,14 +748,14 @@
 
   function sourcesTable(s,item){const rows=item?sourcesFor(s,item):(s.sources||[]);return `<div class="table-wrap"><table class="data-table"><thead><tr><th>Fuente</th><th>RFC</th><th>Precio</th><th>Técnica</th><th>Información obtenida</th><th>Validación</th></tr></thead><tbody>${rows.map(x=>`<tr><td>${esc(x.name)}</td><td>${esc(x.rfc)}</td><td>${money(x.unitPrice)}</td><td>${esc(x.technique||'—')}</td><td>${esc(x.evidence||'—')}</td><td>${badge(x.eligible?'Elegible':'Excluida')}</td></tr>`).join('')||'<tr><td colspan="6">Aún no existen fuentes registradas para este elemento.</td></tr>'}</tbody></table></div>`;}
   function documentStatusHtml(s){const r=requestByStudy(s),rows=[['Bitácora',allApprovals(s)&&s.logGenerated],['Fichas de Estudio de Mercado',allApprovals(s)&&Object.keys(itemDocuments(s)).length===itemsOf(r).length],['Firma Elaboró',!!s.signatures.elaboro],['Firma del Titular del Departamento',!!s.signatures.autorizo],['Firma Subdirección',!!s.signatures.reviso],['Autorización de Dirección',!!s.signatures.direccion],['Dictamen / Oficio de Resultado',!!r.resultDocument]];return `<div class="doc-status-grid">${rows.map(([label,done])=>`<div><span>${esc(label)}</span>${badge(done?'Completado':'Pendiente')}</div>`).join('')}</div>`;}
-  function openAddSource(s){if(state.role!=='investigador'||!roleCanSeeStudy(s)||s.signatures?.elaboro||s.reference)return toast('Las fuentes sólo se capturan antes del cálculo del precio.');const r=requestByStudy(s),pending=itemsOf(r).filter(i=>!i.movement.startsWith('Uso de'));
-    modalBody.innerHTML=`<div class="validation-banner provider-registry-banner"><b>Selección desde Padrón de Proveedores DEMO.</b> Vincule cada fuente con un bien o servicio específico.</div><div class="form-grid cols2 mt24"><label class="span2">Bien / servicio<select id="srcItem">${pending.map(i=>`<option value="${esc(i.id)}">${esc(i.description)}</option>`).join('')}</select></label><label class="span2">Proveedor<select id="srcProvider"><option value="">Seleccione...</option>${PROVIDER_REGISTRY_DEMO.map(p=>`<option value="${p.id}">${esc(p.name)} · ${esc(p.rfc)}</option>`).join('')}</select></label><label>Nombre / razón social<input id="srcName" readonly></label><label>RFC<input id="srcRfc" readonly></label><label>Precio unitario<input id="srcPrice" type="number" step=".01" min=".01"></label><label>Técnica<select id="srcTechnique">${(s.techniques.length?s.techniques:MARKET_TECHNIQUES).map(t=>`<option>${esc(t)}</option>`).join('')}</select></label><label class="span2">Información / evidencia obtenida<textarea id="srcEvidence" rows="2"></textarea></label></div><div class="review-checklist mt24"><label class="review-check"><input type="checkbox" id="srcTechnical"><span>Cumplimiento técnico</span></label><label class="review-check"><input type="checkbox" id="srcComparable"><span>Comparabilidad comercial</span></label><label class="review-check"><input type="checkbox" id="srcFiscal"><span>Validación fiscal satisfactoria · DEMO</span></label><label class="review-check"><input type="checkbox" id="srcController"><span>No objetada · DEMO</span></label></div>`;
+  function openAddSource(s){const techniques=studyTechniques(s);if(state.role!=='investigador'||!roleCanSeeStudy(s)||s.signatures?.elaboro||s.reference)return toast('Las fuentes sólo se capturan antes del cálculo del precio.');if(!techniques.length)return toast('Defina al menos una técnica antes de agregar fuentes.');const r=requestByStudy(s),pending=itemsOf(r).filter(i=>!i.movement.startsWith('Uso de'));
+    modalBody.innerHTML=`<div class="validation-banner provider-registry-banner"><b>Selección desde Padrón de Proveedores DEMO.</b> Vincule cada fuente con un bien o servicio específico.</div><div class="form-grid cols2 mt24"><label class="span2">Bien / servicio<select id="srcItem">${pending.map(i=>`<option value="${esc(i.id)}">${esc(i.description)}</option>`).join('')}</select></label><label class="span2">Proveedor<select id="srcProvider"><option value="">Seleccione...</option>${PROVIDER_REGISTRY_DEMO.map(p=>`<option value="${p.id}">${esc(p.name)} · ${esc(p.rfc)}</option>`).join('')}</select></label><label>Nombre / razón social<input id="srcName" readonly></label><label>RFC<input id="srcRfc" readonly></label><label>Precio unitario<input id="srcPrice" type="number" step=".01" min=".01"></label><label>Técnica<select id="srcTechnique">${techniques.map(t=>`<option>${esc(t)}</option>`).join('')}</select></label><label class="span2">Información / evidencia obtenida<textarea id="srcEvidence" rows="2"></textarea></label></div><div class="review-checklist mt24"><label class="review-check"><input type="checkbox" id="srcTechnical"><span>Cumplimiento técnico</span></label><label class="review-check"><input type="checkbox" id="srcComparable"><span>Comparabilidad comercial</span></label><label class="review-check"><input type="checkbox" id="srcFiscal"><span>Validación fiscal satisfactoria · DEMO</span></label><label class="review-check"><input type="checkbox" id="srcController"><span>No objetada · DEMO</span></label></div>`;
     modalActions.innerHTML='<button class="btn btn-secondary" data-close>Cancelar</button><button class="btn btn-primary" data-save-source>Agregar fuente</button>';openModal('Agregar fuente de mercado',true);
     $('#srcProvider').onchange=()=>{const p=PROVIDER_REGISTRY_DEMO.find(x=>x.id===$('#srcProvider').value);$('#srcName').value=p?.name||'';$('#srcRfc').value=p?.rfc||'';};
     $('[data-close]',modalActions).onclick=()=>openStudyDetail(s.folio);
-    $('[data-save-source]',modalActions).onclick=()=>{const p=PROVIDER_REGISTRY_DEMO.find(x=>x.id===$('#srcProvider').value),amount=Number($('#srcPrice').value),id=$('#srcItem').value,detail=$('#srcEvidence').value.trim();if(!p||!Number.isFinite(amount)||amount<=0||!detail)return toast('Seleccione proveedor y capture precio positivo e información obtenida.');if(sourcesFor(s,{id}).some(x=>x.rfc===p.rfc))return toast('Esta fuente ya fue registrada para el bien o servicio seleccionado.');
+    $('[data-save-source]',modalActions).onclick=()=>{if(!studyTechniques(s).length)return toast('Defina al menos una técnica antes de agregar fuentes.');const p=PROVIDER_REGISTRY_DEMO.find(x=>x.id===$('#srcProvider').value),amount=Number($('#srcPrice').value),id=$('#srcItem').value,detail=$('#srcEvidence').value.trim();if(!p||!Number.isFinite(amount)||amount<=0||!detail)return toast('Seleccione proveedor y capture precio positivo e información obtenida.');if(sourcesFor(s,{id}).some(x=>x.rfc===p.rfc))return toast('Esta fuente ya fue registrada para el bien o servicio seleccionado.');
       const x={itemId:id,providerId:p.id,name:p.name,rfc:p.rfc,type:p.type,technique:$('#srcTechnique').value,quoted:true,unitPrice:amount,tax:Number((amount*.16).toFixed(2)),total:Number((amount*1.16).toFixed(2)),technical:$('#srcTechnical').checked,comparable:$('#srcComparable').checked,fiscal:$('#srcFiscal').checked?'Válido':'No válido',controller:$('#srcController').checked?'No objetada':'Objetada',evidence:detail,eligible:['srcTechnical','srcComparable','srcFiscal','srcController'].every(k=>$('#'+k).checked)};
-      s.sources.push(x);s.validatedSources=false;s.state='Cotizaciones recibidas';s.history.push({when:stamp(),label:`Fuente ${p.name} vinculada al elemento ${id}`});audit('Cotización recibida',s.folio,`${p.name} · ${money(amount)} · elemento ${id}`,r);openStudyDetail(s.folio);};
+      s.sources.push(x);s.validatedSources=false;s.state='Cotizaciones recibidas';s.history.push({when:stamp(),label:`Fuente ${p.name} vinculada al elemento ${id}`});if(!audit('Cotización recibida',s.folio,`${p.name} · ${money(amount)} · elemento ${id}`,r).persisted)return;openStudyDetail(s.folio);};
   }
   function openExceptionModal(s){if(state.role!=='investigador'||!roleCanSeeStudy(s)||s.signatures?.elaboro||!s.validatedSources||s.reference)return toast('La excepción se registra sólo tras validar fuentes y antes del cálculo.');const r=requestByStudy(s),results=ensureResults(s),pending=itemsOf(r).filter(i=>!i.movement.startsWith('Uso de')&&eligibleFor(s,i).length<2);
     modalBody.innerHTML=`<p>Documente un supuesto excepcional por cada bien o servicio con menos de dos cotizaciones elegibles.</p><label>Bien / servicio<select id="excItem">${pending.map(i=>`<option value="${esc(i.id)}">${esc(i.description)}</option>`).join('')}</select></label><label>Supuesto / fundamento<select id="excGround"><option>Supuesto excepcional Art. 18 · DEMO</option><option>Mercado con fuente única documentada · DEMO</option></select></label><label>Justificación<textarea id="excJust" rows="3"></textarea></label><label>Monto alternativo de referencia<input id="excAmount" type="number" step=".01" min=".01"></label>`;

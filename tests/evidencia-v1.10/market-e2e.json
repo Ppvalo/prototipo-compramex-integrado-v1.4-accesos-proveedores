@@ -1,0 +1,30 @@
+{
+  "passed": 22,
+  "checks": [
+    "Acceso, nueva leyenda y ausencia de radios en el Dictamen; leyenda prohibida retirada.",
+    "Área no puede continuar sin archivo real de Dictamen, y no se muestra éxito falso.",
+    "Un archivo con extensión PDF pero contenido inválido no satisface el requisito.",
+    "Archivo válido permite Área→CA; mensaje exacto y trazabilidad conservada.",
+    "CA sin revisión completa no muestra remisión exitosa.",
+    "CA→Oficialía Mayor muestra mensaje exacto sólo tras envío y conserva eventos anteriores.",
+    "Dictamen también es siempre obligatorio para el inicio directo por Coordinación Administrativa.",
+    "Inicio directo CA continúa al cargar un Dictamen válido.",
+    "Asignación y revisión documental originales crean un estudio con dos bienes.",
+    "Agregar fuente inicia deshabilitado y la guardia lógica bloquea intentos de evadirlo.",
+    "Guardar técnicas habilita Agregar fuente.",
+    "Se agregan fuentes asociadas a técnica y bien, manteniendo validaciones existentes.",
+    "Precio y cadena de firmas Elaboró→Titular→Subdirección→Dirección se conservan.",
+    "Botones modernizados mantienen numeración y generan dos fichas independientes.",
+    "Ambas fichas generadas abren correctamente conservando su funcionalidad.",
+    "Bitácora impresa con varios bienes presenta una sola sección de Técnicas de mercado.",
+    "Bitácora impresa de un bien también conserva una sola sección de técnicas.",
+    "Subsanación conserva archivo previo válido y migra la antigua selección No sin exigir radios.",
+    "Reemplazar Dictamen en subsanación carga correctamente y conserva historial de versiones.",
+    "Subsanación no avanza con nombre/metadatos si no existe archivo válido.",
+    "Un fallo de almacenamiento en la remisión no muestra Solicitud remitida.",
+    "Sin errores JavaScript durante solicitudes, subsanación, estudios, fichas y reportes."
+  ],
+  "errors": [],
+  "folio": "CAT-2026-0429",
+  "study": "EM-2026-0121"
+}

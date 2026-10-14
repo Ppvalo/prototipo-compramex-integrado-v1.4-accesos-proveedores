@@ -1,0 +1,22 @@
+{
+  "passed": 16,
+  "checks": [
+    "Todos los campos previos se conservan y se muestran mapas fiscal y comercial.",
+    "Siguiente bloqueado sin ubicaciones confirmadas.",
+    "Los accesos directos a pasos posteriores no evaden la validación.",
+    "Búsqueda real Photon posiciona el marcador sin confirmar automáticamente.",
+    "Confirmación fiscal guarda coordenadas automáticas y fecha.",
+    "Arrastre real con mouse invalida inmediatamente la confirmación y permite reconfirmar.",
+    "Sí copia datos, coordenadas, estado y fecha; comercial queda vinculado sin segundo mapa.",
+    "Cambio de dirección fiscal se propaga al comercial y exige reconfirmar.",
+    "Editar comercial desvincula y cambia domicilio/ubicación sin afectar fiscal.",
+    "Recarga conserva coordenadas, fecha, estado y ambos marcadores guardados.",
+    "Continuar habilitado tras confirmar los domicilios obligatorios.",
+    "Revisión mantiene controles documentales previos sin tratar coordenadas confirmadas como faltantes.",
+    "Reenvío desde Seguimiento bloqueado si una edición dejó la ubicación pendiente.",
+    "Reenvío existente continúa después de reconfirmar la ubicación.",
+    "Acceso a Estudio de Mercado conserva los datos de proveedores.",
+    "Sin errores JavaScript de aplicación en el flujo de proveedores."
+  ],
+  "errors": []
+}

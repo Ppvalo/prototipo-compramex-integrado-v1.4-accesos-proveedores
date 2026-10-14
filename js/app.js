@@ -1,9 +1,12 @@
 (() => {
   const STORAGE = 'edomexProveedorDemoCOMPRAMEXv1';
+  const geo = globalThis.ProviderGeolocation;
+  if (!geo) throw new Error('Falta el módulo de georreferenciación');
   const defaultForm = {
     tipoSolicitud:'Alta',fechaElaboracion:'',folioPrevio:'',razonSocial:'',tipoPersona:'Persona jurídica colectiva',antigRamo:'',antigGem:'',
     fiscalCalle:'',fiscalCp:'',fiscalMunicipio:'',fiscalEntidad:'Estado de México',fiscalTelefono:'',fiscalEmail:'',fiscalWeb:'',
     comercialCalle:'',comercialCp:'',comercialMunicipio:'',comercialEntidad:'Estado de México',comercialTelefono:'',comercialEmail:'',comercialWeb:'',
+    comercialMismoFiscal:'no',fiscalGeorreferenciacion:geo.empty(),comercialGeorreferenciacion:geo.empty(),
     actaConstitutiva:'',idCif:'',rfc:'',camara:'',representante:'',poderNotarial:'',descripcionActividad:'',
     actividad:[],socios:['','','',''],giros:['','','','','',''],
     pasivoCirculante:'',pasivoCapital:'',activoCirculante:'',almacen:'',personalAdmin:'',personalTecnico:'',personalObrero:'',
@@ -32,7 +35,7 @@
     role:null,
     accountRegistered:false,
     account:{name:'',rfc:'',email:''},
-    status:'Borrador',folio:'',formStep:0,docs:{},
+    status:'Borrador',folio:'',formStep:0,docs:{},docContext:{},
     timeline:[{label:'Trámite disponible',detail:'El proveedor puede iniciar la captura en línea',when:''}],
     messages:[],
     cotejo:null,
@@ -87,6 +90,9 @@
     {title:'Declaración',note:'Revise la solicitud antes de integrar y enviar el expediente documental.'}
   ];
 
+  const registration = globalThis.ProviderRequirements2026;
+  if (!registration) throw new Error('Falta el catálogo documental de proveedores 2026');
+
   const documents = {
     acta:['acta','Acta constitutiva y última modificación','Original/copia para cotejo; cargar soporte digital en el expediente.',true],
     actaNacimiento:['actaNacimiento','Acta de nacimiento','Documento de identificación de la persona física.',true],
@@ -138,6 +144,8 @@
   function activeSteps(){ return isFullRegistration()?cedulaSteps:movementSteps; }
   function personKey(){ return state.form.tipoPersona==='Persona física'?'fisica':'moral'; }
   function currentDocTypes(){
+    if (isFullRegistration()) return registration.visible(state.form, state.docContext).map(row =>
+      [row.key, `${row.number}. ${row.title}`, row.hint, !row.optional, row]);
     const proc=state.form.tipoSolicitud;
     const keys=(requirementsByProcedure[proc]||requirementsByProcedure.Alta)[personKey()]||[];
     return keys.map(k=>{
@@ -148,11 +156,27 @@
       return copy;
     }).filter(Boolean);
   }
+  function registrationSlots(){
+    return registration.visible(state.form, state.docContext).flatMap(row =>
+      registration.slots(row, state.form, state.docContext).map(slot =>
+        ({row, slot, key:`${row.key}:${slot.id}`})));
+  }
+  function registrationHasFile(key){ return Array.isArray(runtimeFiles[key]) && runtimeFiles[key].length > 0; }
+  function hasLegacyFile(key){ return !!runtimeFiles[key]?.url; }
+  function registrationMissing(){
+    return registrationSlots().filter(({row,slot,key}) => !row.optional && slot.required && !registrationHasFile(key));
+  }
   function requiredDocTypes(){ return currentDocTypes().filter(x=>x[3]!==false); }
-  function requiredDocCount(){ return requiredDocTypes().filter(([k])=>state.docs[k]).length; }
-  function requiredDocTotal(){ return requiredDocTypes().length; }
+  function requiredDocCount(){
+    if (isFullRegistration()) return registrationSlots().filter(({row,slot,key}) => !row.optional && slot.required && registrationHasFile(key)).length;
+    return requiredDocTypes().filter(([k])=>hasLegacyFile(k)).length;
+  }
+  function requiredDocTotal(){
+    if (isFullRegistration()) return registrationSlots().filter(({row,slot}) => !row.optional && slot.required).length;
+    return requiredDocTypes().length;
+  }
   function feeReference(){
-    return ['Alta','Renovación'].includes(state.form.tipoSolicitud)?944:472;
+    return ['Alta','Renovación'].includes(state.form.tipoSolicitud)?983:492;
   }
   function requiresSanctionsCheck(){ return state.form.tipoSolicitud==='Alta'; }
   const conditionOptions = [
@@ -177,7 +201,19 @@
     });
     return out;
   }
-  function load(){ try{return deepMerge(defaultState, JSON.parse(localStorage.getItem(STORAGE)||'{}'));}catch(e){return structuredClone(defaultState);} }
+  function load(){
+    try {
+      const loaded=deepMerge(defaultState, JSON.parse(localStorage.getItem(STORAGE)||'{}'));
+      // Los archivos existen solo en memoria; un expediente sin bytes no puede quedar validado tras recargar.
+      if (loaded.payment && !loaded.cedula) {
+        loaded.payment=null;
+        loaded.expedienteValidado=false;
+        loaded.status='En validación';
+      }
+      geo.ensure(loaded.form);
+      return loaded;
+    } catch(e) { return structuredClone(defaultState); }
+  }
   function save(){ localStorage.setItem(STORAGE, JSON.stringify(state)); }
   function today(){ const d=new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
   function tomorrow(){ const d=new Date(); d.setDate(d.getDate()+1); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
@@ -210,8 +246,17 @@
   function addMessage(from,body,type='normal'){
     state.messages.push({from,body,when:stamp(),type}); save();
   }
-  function docCount(){ return currentDocTypes().filter(([k])=>state.docs[k]).length; }
-  function docTotal(){ return currentDocTypes().length; }
+  function docCount(){
+    return isFullRegistration() ? registrationSlots().filter(({key})=>registrationHasFile(key)).length : currentDocTypes().filter(([k])=>hasLegacyFile(k)).length;
+  }
+  function docTotal(){ return isFullRegistration() ? registrationSlots().length : currentDocTypes().length; }
+  function releaseRuntimeFiles(){
+    Object.keys(runtimeFiles).forEach(key => {
+      const entries = Array.isArray(runtimeFiles[key]) ? runtimeFiles[key] : [runtimeFiles[key]];
+      entries.forEach(entry => { if (entry?.url) URL.revokeObjectURL(entry.url); });
+      delete runtimeFiles[key];
+    });
+  }
   function docInfo(value){
     if(!value) return null;
     if(typeof value==='string') return {name:value,type:'application/pdf',size:0,uploadedAt:'',demo:true};
@@ -237,11 +282,15 @@
   }
 
   function showOnly(which){
+    if(which!=='workspace') geo.dispose();
     publicView.classList.toggle('hidden',which!=='public');
     accessView.classList.toggle('hidden',which!=='access');
     workspace.classList.toggle('hidden',which!=='workspace');
   }
-  function showPublic(){ state.role=null; save(); showOnly('public'); }
+  function showPublic(){
+    if(content.querySelector('#providerForm'))captureForm();
+    state.role=null; save(); showOnly('public');
+  }
   function showAccess(mode){
     showOnly('access');
     const kicker=$('#accessKicker'), title=$('#accessTitle'), desc=$('#accessDescription');
@@ -302,6 +351,8 @@
   }
   function header(k,t,p){ pageHeader.innerHTML=`<span class="kicker">${k}</span><h2>${t}</h2><p>${p}</p>`; }
   function route(name){
+    geo.dispose();
+    if (name !== 'form' && content.querySelector('#providerForm')) { captureForm(); save(); }
     mainNav.querySelectorAll('button').forEach(b=>b.classList.toggle('active',b.dataset.route===name));
     if(name==='dashboard')renderDashboard();
     if(name==='form')renderForm();
@@ -322,7 +373,7 @@
       const previousRecord=state.cedula?.number||state.form.folioPrevio||'';
       const preserve={razonSocial:state.form.razonSocial||state.account.name,rfc:state.form.rfc||state.account.rfc,fiscalEmail:state.form.fiscalEmail||state.account.email,tipoPersona:state.form.tipoPersona,representante:state.form.representante||'',poderNotarial:state.form.poderNotarial||''};
       state.form={...structuredClone(defaultForm),...preserve,tipoSolicitud:type,fechaElaboracion:today(),folioPrevio:type==='Alta'?'':previousRecord};
-      state.status='Borrador'; state.folio=''; state.docs={}; state.formStep=0; state.cotejo=null; state.expedienteValidado=false; state.payment=null; state.cedula=null; state.sanctionsCheck=null; state.reviewChecklist={}; state.messages=[]; state.assignmentStatus=''; state.assignedTo=''; state.assignedAt=''; state.assignmentReceivedAt=''; state.assignmentHistory=[]; Object.keys(runtimeFiles).forEach(k=>{try{URL.revokeObjectURL(runtimeFiles[k].url);}catch(e){} delete runtimeFiles[k];});
+      state.status='Borrador'; state.folio=''; state.docs={}; state.docContext={}; state.formStep=0; state.cotejo=null; state.expedienteValidado=false; state.payment=null; state.cedula=null; state.sanctionsCheck=null; state.reviewChecklist={}; state.messages=[]; state.assignmentStatus=''; state.assignedTo=''; state.assignedAt=''; state.assignmentReceivedAt=''; state.assignmentHistory=[]; releaseRuntimeFiles();
       state.timeline=[{label:`${type} iniciada`,detail:'Captura en línea disponible para el proveedor',when:stamp()}];
       save(); route('form');
     };
@@ -359,19 +410,21 @@
   }
 
   function renderForm(){
+    geo.dispose();geo.ensure(state.form);
     const steps=activeSteps();
     if(state.formStep>=steps.length) state.formStep=steps.length-1;
     header(isFullRegistration()?'Cédula':'Solicitud',`${state.form.tipoSolicitud} de proveedor`,isFullRegistration()?'La Cédula se captura y guarda en línea; el expediente documental se integra conforme al tipo de persona.':'El movimiento utiliza una solicitud simplificada y un expediente documental específico conforme al requisito aportado.');
     content.innerHTML=''; content.append($('#formTpl').content.cloneNode(true));
     const stepBox=content.querySelector('[data-form-steps]');
     stepBox.innerHTML=steps.map((st,i)=>`<button type="button" class="form-step ${i===state.formStep?'active':''}" data-goto="${i}"><b>${i+1}</b><span>${st.title}</span></button>`).join('');
-    stepBox.querySelectorAll('button').forEach(b=>b.onclick=()=>{captureForm();state.formStep=+b.dataset.goto;save();renderForm();});
+    stepBox.querySelectorAll('button').forEach(b=>b.onclick=()=>{captureForm();const target=+b.dataset.goto;if(isFullRegistration()&&target>1&&!validateGeolocation())return;state.formStep=target;save();renderForm();});
     setStatus(content.querySelector('[data-form-status]'),state.status);
     const form=content.querySelector('#providerForm'); form.innerHTML=sectionHtml(state.formStep); hydrateForm(form); bindFormDynamics(form);
+    geo.mount(form,state.form,{save,capture:captureForm,rerender:renderForm});
     content.querySelector('[data-step-label]').textContent=`Paso ${state.formStep+1} de ${steps.length}`;
     content.querySelector('[data-prev]').disabled=state.formStep===0; content.querySelector('[data-next]').style.visibility=state.formStep===steps.length-1?'hidden':'visible';
     content.querySelector('[data-prev]').onclick=()=>{captureForm();state.formStep=Math.max(0,state.formStep-1);save();renderForm();};
-    content.querySelector('[data-next]').onclick=()=>{captureForm();state.formStep=Math.min(steps.length-1,state.formStep+1);save();renderForm();};
+    content.querySelector('[data-next]').onclick=()=>{captureForm();if(isFullRegistration()&&state.formStep>=1&&!validateGeolocation())return;state.formStep=Math.min(steps.length-1,state.formStep+1);save();renderForm();};
     content.querySelector('[data-save]').onclick=()=>{captureForm();save();toast('Borrador guardado. Puede cerrar sesión y continuar posteriormente en esta demostración.');};
     content.querySelector('[data-review]').onclick=()=>{captureForm();save();openReviewModal();};
   }
@@ -381,7 +434,7 @@
     const note=`<div class="section-note">${steps[i].note}<span class="source-chip">${isFullRegistration()?'Campo de la cédula':'Movimiento del padrón'}</span></div>`;
     if(isAdditionalMovement()) return movementSectionHtml(i,note);
     if(i===0)return `<section class="form-section"><span class="kicker">Paso 1</span><h3>Tipo de solicitud</h3>${note}<div class="procedure-current"><span>Trámite activo</span><strong>${escapeHtml(state.form.tipoSolicitud)}</strong></div><div class="form-grid cols2 mt24"><label>Fecha de elaboración<input type="date" name="fechaElaboracion"></label><label>Folio / registro previo <small>${state.form.tipoSolicitud==='Renovación'?'requerido para identificar el registro':'si aplica'}</small><input name="folioPrevio"></label></div><div class="section-note mt24">Para iniciar un tipo de movimiento distinto, regrese al panel principal y seleccione el trámite correspondiente.</div></section>`;
-    if(i===1)return `<section class="form-section"><span class="kicker">Paso 2</span><h3>Datos generales de la empresa</h3>${note}<div class="form-grid cols3"><label class="span2">Nombre, denominación o razón social<input name="razonSocial"></label><label>Tipo de persona<select name="tipoPersona"><option>Persona jurídica colectiva</option><option>Persona física</option></select></label><label>Antigüedad en el ramo (años)<input type="number" min="0" name="antigRamo"></label><label>Antigüedad en el G.E.M. (años)<input type="number" min="0" name="antigGem"></label></div>${addressBlock('fiscal','Domicilio fiscal')}${addressBlock('comercial','Domicilio comercial')}</section>`;
+    if(i===1)return `<section class="form-section"><span class="kicker">Paso 2</span><h3>Datos generales de la empresa</h3>${note}<div class="form-grid cols3"><label class="span2">Nombre, denominación o razón social<input name="razonSocial"></label><label>Tipo de persona<select name="tipoPersona"><option>Persona jurídica colectiva</option><option>Persona física</option></select></label><label>Antigüedad en el ramo (años)<input type="number" min="0" name="antigRamo"></label><label>Antigüedad en el G.E.M. (años)<input type="number" min="0" name="antigGem"></label></div>${addressBlock('fiscal','Domicilio fiscal')}${geo.html('fiscal',state.form)}${geo.commercialQuestion(state.form)}${addressBlock('comercial','Domicilio comercial')}${state.form.comercialMismoFiscal==='si'?geo.linkedHtml(state.form):geo.html('comercial',state.form)}</section>`;
     if(i===2)return `<section class="form-section"><span class="kicker">Paso 3</span><h3>Registros oficiales</h3>${note}<div class="form-grid cols2"><label>No. de acta constitutiva o de nacimiento<input name="actaConstitutiva"></label><label>No. de folio ante la S.H. y C.P. (idCIF)<input name="idCif"></label><label>RFC<input name="rfc" maxlength="13"></label><label>Cámara a la que pertenece y constancia <small>(opcional)</small><input name="camara"></label><label>Representante legal o propietario<input name="representante"></label><label>No. de poder notarial <small>(si aplica)</small><input name="poderNotarial"></label></div><div class="section-note mt24">Los requisitos documentales del expediente se ajustan automáticamente al tipo de persona y al trámite seleccionado.</div></section>`;
     if(i===3)return `<section class="form-section"><span class="kicker">Paso 4</span><h3>Actividad preponderante y giros</h3>${note}<div class="checks">${['Productor','Distribuidor','Prestador de servicios','Comercializador'].map(x=>`<label class="check"><input type="checkbox" name="actividad" value="${x}"> ${x}</label>`).join('')}</div><label class="mt24">Descripción de las actividades preponderantes<textarea name="descripcionActividad" rows="4"></textarea></label><div class="subhead">Socios principales</div><div class="repeat-grid">${[0,1,2,3].map(j=>`<label>Socio ${j+1}<input name="socios_${j}"></label>`).join('')}</div><div class="subhead">Giros principales seleccionados · máximo 6</div><div class="repeat-grid">${[0,1,2,3,4,5].map(j=>`<label>Giro ${j+1}<input name="giros_${j}"></label>`).join('')}</div></section>`;
     if(i===4)return `<section class="form-section"><span class="kicker">Paso 5</span><h3>Capacidad financiera</h3>${note}<div class="form-grid cols2"><label>Pasivo circulante ($)<input type="number" min="0" step=".01" name="pasivoCirculante" data-fin></label><label>Pasivo y capital ($)<input type="number" min="0" step=".01" name="pasivoCapital" data-fin></label><label>Activo circulante ($)<input type="number" min="0" step=".01" name="activoCirculante" data-fin></label><label>Almacén ($)<input type="number" min="0" step=".01" name="almacen" data-fin></label></div><div class="metric-grid mt24"><div class="metric" data-metric="endeuda"><span>Endeudamiento</span><strong>—</strong><small>Máximo 0.40</small></div><div class="metric" data-metric="liquidez"><span>Liquidez</span><strong>—</strong><small>Mínimo 1.00</small></div><div class="metric" data-metric="solvencia"><span>Solvencia</span><strong>—</strong><small>Mínimo 1.00</small></div></div><div class="section-note mt24">El documento de revisión previa exige verificar los parámetros financieros y la vigencia temporal de los estados financieros del mes inmediato anterior.</div></section>`;
@@ -429,30 +482,118 @@
       else if(el.type==='radio'){if(el.checked)state.form[n]=el.value;}
       else state.form[n]=el.value;
     });
+    geo.sync(state.form);
     $('#userName').textContent=state.form.razonSocial||state.account.name||'Proveedor';
   }
-  function bindFormDynamics(form){form.querySelectorAll('[data-fin]').forEach(x=>x.addEventListener('input',()=>calcFinancial(form)));form.querySelectorAll('[data-person]').forEach(x=>x.addEventListener('input',()=>calcPersonnel(form)));}
+  function bindFormDynamics(form){
+    form.querySelectorAll('[data-fin]').forEach(x=>x.addEventListener('input',()=>calcFinancial(form)));
+    form.querySelectorAll('[data-person]').forEach(x=>x.addEventListener('input',()=>calcPersonnel(form)));
+    form.querySelector('[name="tipoPersona"]')?.addEventListener('change',()=>{captureForm();save();});
+  }
   function calcFinancial(form){if(!form)return;const n=x=>parseFloat(form.elements[x]?.value||0),pc=n('pasivoCirculante'),cap=n('pasivoCapital'),ac=n('activoCirculante'),alm=n('almacen');const vals={endeuda:cap?pc/cap:null,liquidez:pc?(ac-alm)/pc:null,solvencia:pc?ac/pc:null},rules={endeuda:v=>v<=.4,liquidez:v=>v>=1,solvencia:v=>v>=1};Object.entries(vals).forEach(([k,v])=>{const box=form.querySelector(`[data-metric="${k}"]`);if(!box)return;box.classList.remove('ok','bad');box.querySelector('strong').textContent=v==null?'—':v.toFixed(2);if(v!=null)box.classList.add(rules[k](v)?'ok':'bad');});}
   function calcPersonnel(form){if(!form)return;const n=x=>parseInt(form.elements[x]?.value||0,10)||0,el=form.querySelector('[data-person-total]');if(el)el.textContent=n('personalAdmin')+n('personalTecnico')+n('personalObrero');}
 
   function renderDocs(){
+    if (isFullRegistration()) { renderRegistrationDocs(); return; }
     const defs=currentDocTypes();
     header('Expediente','Documentación soporte',`Requisitos documentales para ${state.form.tipoSolicitud} · ${state.form.tipoPersona}. El proveedor integra archivos en línea y la autoridad puede consultarlos durante la validación.`);
     content.innerHTML='';content.append($('#docsTpl').content.cloneNode(true));const list=content.querySelector('[data-doc-list]');
     const title=content.querySelector('[data-docs-title]'); if(title)title.textContent=`${state.form.tipoSolicitud} · ${state.form.tipoPersona}`;
     const intro=content.querySelector('[data-docs-intro]'); if(intro)intro.innerHTML=`El listado cambia automáticamente según el trámite y tipo de persona. <b>${requiredDocTotal()}</b> documentos están marcados como obligatorios en esta demostración; los condicionales u opcionales se identifican por separado.`;
-    list.innerHTML=defs.map(([k,n,d,required])=>{const info=docInfo(state.docs[k]);return `<div class="doc-row"><div><div class="doc-title-line"><strong>${n}</strong><span class="doc-requirement ${required===false?'optional':'required'}">${required===false?'Condicional / opcional':'Requerido'}</span></div><small>${d}</small>${info?`<small class="doc-ok">✓ ${escapeHtml(info.name)} · ${escapeHtml(formatBytes(info.size))}</small>`:''}</div><div class="doc-actions"><label class="btn btn-secondary btn-small file-btn">Seleccionar<input type="file" data-doc="${k}" accept=".pdf,.jpg,.jpeg,.png"></label>${info?`<button class="btn btn-ghost btn-small" type="button" data-provider-view-doc="${k}">Ver</button><button class="btn btn-ghost btn-small" type="button" data-remove="${k}">Quitar</button>`:''}</div></div>`}).join('');
+    list.innerHTML=defs.map(([k,n,d,required])=>{const info=docInfo(state.docs[k]),live=hasLegacyFile(k);return `<div class="doc-row"><div><div class="doc-title-line"><strong>${n}</strong><span class="doc-requirement ${required===false?'optional':'required'}">${required===false?'Condicional / opcional':'Requerido'}</span></div><small>${d}</small>${live?`<small class="doc-ok">✓ ${escapeHtml(info.name)} · ${escapeHtml(formatBytes(info.size))}</small>`:info?`<small class="missing-doc">Selección anterior sin archivo disponible; vuelva a elegir.</small>`:''}</div><div class="doc-actions"><label class="btn btn-secondary btn-small file-btn">Seleccionar<input type="file" data-doc="${k}" accept=".pdf,.jpg,.jpeg,.png"></label>${live?`<button class="btn btn-ghost btn-small" type="button" data-provider-view-doc="${k}">Ver</button>`:''}${info?`<button class="btn btn-ghost btn-small" type="button" data-remove="${k}">Quitar</button>`:''}</div></div>`}).join('');
     list.querySelectorAll('input[type=file]').forEach(inp=>inp.onchange=()=>{const file=inp.files[0];if(!file)return;if(file.size>12*1024*1024){toast('Para esta demostración seleccione archivos de hasta 12 MB.');return;}if(runtimeFiles[inp.dataset.doc]){try{URL.revokeObjectURL(runtimeFiles[inp.dataset.doc].url);}catch(e){}}runtimeFiles[inp.dataset.doc]={url:URL.createObjectURL(file),type:file.type,name:file.name};state.docs[inp.dataset.doc]={name:file.name,type:file.type,size:file.size,uploadedAt:stamp(),demo:false};save();renderDocs();});
     list.querySelectorAll('[data-remove]').forEach(b=>b.onclick=()=>{if(runtimeFiles[b.dataset.remove]){try{URL.revokeObjectURL(runtimeFiles[b.dataset.remove].url);}catch(e){} delete runtimeFiles[b.dataset.remove];}delete state.docs[b.dataset.remove];save();renderDocs();});
     list.querySelectorAll('[data-provider-view-doc]').forEach(b=>b.onclick=()=>openDocumentViewer(b.dataset.providerViewDoc));
     const denom=Math.max(1,requiredDocTotal()),pct=Math.round(requiredDocCount()/denom*100),donut=content.querySelector('[data-donut]');donut.style.setProperty('--p',pct);content.querySelector('[data-doc-percent]').textContent=pct+'%';
-    content.querySelector('[data-doc-summary]').innerHTML=defs.map(([k,n,d,required])=>`<div class="checkline"><span>${n}${required===false?' <small>(condicional/opcional)</small>':''}</span><b>${state.docs[k]?'Integrado':required===false?'Si aplica':'Pendiente'}</b></div>`).join('');
-    const note=content.querySelector('[data-docs-source-note]'); if(note)note.innerHTML='<b>Regla del documento aportado:</b> el proveedor se registra en COMPRAMEX y sube sus documentos en formato PDF; si la información es correcta se le notifica para agendar cita. Los originales o copias certificadas y copias simples se presentan para cotejo.';
+    content.querySelector('[data-doc-summary]').innerHTML=defs.map(([k,n,d,required])=>`<div class="checkline"><span>${n}${required===false?' <small>(condicional/opcional)</small>':''}</span><b>${hasLegacyFile(k)?'Integrado':required===false?'Si aplica':'Pendiente'}</b></div>`).join('');
+    const note=content.querySelector('[data-docs-source-note]'); if(note)note.innerHTML='<b>Alcance de este movimiento:</b> los archivos se seleccionan durante la sesión y pueden revisarse para cotejo cuando proceda; al recargar, seleccione de nuevo los archivos.';
     content.querySelector('[data-return-form]').onclick=()=>route('form');
   }
 
+  function registrationFileType(file, kind){
+    const name=file.name.toLowerCase(), type=file.type.toLowerCase();
+    if(kind==='image') return /\.(jpe?g|png)$/.test(name) && (!type || ['image/jpeg','image/png'].includes(type));
+    return /\.pdf$/.test(name) && (!type || type==='application/pdf');
+  }
+  function renderRegistrationDocs(){
+    const rows=registration.visible(state.form,state.docContext);
+    header('Expediente','Documentación soporte',`Requisitos 2026 para ${state.form.tipoSolicitud} · ${state.form.tipoPersona}. Seleccione archivos para esta demostración; la autoridad puede consultarlos solamente durante la sesión.`);
+    content.innerHTML='';content.append($('#docsTpl').content.cloneNode(true));
+    const title=content.querySelector('[data-docs-title]');
+    title.textContent=`${state.form.tipoSolicitud} · ${state.form.tipoPersona}`;
+    const intro=content.querySelector('[data-docs-intro]');
+    intro.innerHTML=`El listado cambia según trámite, persona y supuesto declarado. <b>${requiredDocTotal()}</b> archivos obligatorios aplicables. Los documentos no se almacenan en un servidor; tras recargar deberá seleccionarlos de nuevo.`;
+    const choices=registration.choices(state.form,state.docContext);
+    const controls=choices.map(choice=>`<label class="doc-choice">${escapeHtml(choice.label)}<select data-doc-context="${choice.id}"><option value="">Seleccione una opción</option>${choice.options.map(([value,label])=>`<option value="${value}" ${choice.value===value?'selected':''}>${escapeHtml(label)}</option>`).join('')}</select></label>`).join('');
+    const list=content.querySelector('[data-doc-list]');
+    list.innerHTML=`<div class="doc-context-grid">${controls}</div>${rows.map(row=>{
+      const slots=registration.slots(row,state.form,state.docContext);
+      const rowPending=(row.number===14&&!choices.find(choice=>choice.id==='fiscalCase')?.value)||(row.number===17&&!state.docContext.imss)||(row.number===21&&!state.docContext.previousCedula);
+      const label=row.optional?'Opcional':row.condition==='outside'?'Condicional':'Requerido';
+      const help=`<div class="doc-row-note">${escapeHtml(row.hint)}</div><div class="doc-row-note"><b>Aplica:</b> ${escapeHtml(row.applies)}${row.onlyRenew?' · Solo renovación':''}${row.condition==='outside'?' · Solo domicilio fiscal fuera de Edoméx':''} · <b>Presentación física:</b> ${escapeHtml(row.physical)} (no exige dos cargas por original y copia).</div>`;
+      return `<div class="doc-row doc-row-2026" data-requirement="${row.key}"><div class="doc-row-main"><div class="doc-title-line"><strong>${row.number}. ${escapeHtml(row.title)}</strong><span class="doc-requirement ${row.optional?'optional':'required'}">${label}</span></div>${help}${rowPending?'<small class="missing-doc">Seleccione primero el supuesto aplicable.</small>':''}<div class="doc-slot-list">${slots.map(slot=>{
+        const key=`${row.key}:${slot.id}`, files=Array.isArray(runtimeFiles[key])?runtimeFiles[key]:[];
+        const stale=Array.isArray(state.docs[key]) && state.docs[key].length && !files.length;
+        const status=files.length?`${files.length} archivo(s) seleccionados`:stale?'Selección anterior sin archivo disponible; vuelva a elegir':row.optional?'Sin archivo (opcional)':'Pendiente';
+        const accept=slot.kind==='image'?'.jpg,.jpeg,.png,image/jpeg,image/png':'.pdf,application/pdf';
+        const allowMultiple=row.number===3 || (row.number===22 && slot.id==='soportes');
+        const multiple=allowMultiple?' multiple':'';
+        return `<div class="doc-slot" data-slot="${escapeHtml(key)}"><div class="doc-slot-head"><b>${escapeHtml(slot.label)}</b><small class="${files.length?'doc-ok':row.optional?'':'missing-doc'}" role="status">${escapeHtml(status)}</small></div><div class="doc-actions"><label class="btn btn-secondary btn-small file-btn">Seleccionar o reemplazar<input type="file" data-registration-file="${escapeHtml(key)}" data-kind="${slot.kind}" data-mode="replace" accept="${accept}"${multiple} aria-label="Seleccionar o reemplazar: ${escapeHtml(slot.label)}"></label>${allowMultiple&&files.length?`<label class="btn btn-ghost btn-small file-btn">Agregar archivos<input type="file" data-registration-file="${escapeHtml(key)}" data-kind="${slot.kind}" data-mode="add" accept="${accept}" multiple aria-label="Agregar archivos: ${escapeHtml(slot.label)}"></label>`:''}</div>${files.map((file,index)=>`<div class="doc-file-entry"><span>${escapeHtml(file.name)} · ${escapeHtml(formatBytes(file.size))}</span><button class="btn btn-ghost btn-small" type="button" data-registration-view="${escapeHtml(key)}" data-index="${index}">Ver</button><button class="btn btn-ghost btn-small" type="button" data-registration-remove="${escapeHtml(key)}" data-index="${index}">Quitar</button></div>`).join('')}</div>`;
+      }).join('')}</div></div></div>`;
+    }).join('')}`;
+    list.querySelectorAll('[data-doc-context]').forEach(select=>select.addEventListener('change',()=>{
+      state.docContext[select.dataset.docContext]=select.value;
+      save();renderRegistrationDocs();
+    }));
+    list.querySelectorAll('[data-registration-file]').forEach(input=>input.addEventListener('change',()=>{
+      const files=Array.from(input.files||[]);
+      if(!files.length)return;
+      if(files.some(file=>file.size>12*1024*1024)) { toast('Para esta demostración seleccione archivos de hasta 12 MB por archivo.');return; }
+      if(files.some(file=>!registrationFileType(file,input.dataset.kind))){ toast(input.dataset.kind==='image'?'Seleccione imágenes JPG o PNG.':'Seleccione documentos PDF.');return; }
+      const key=input.dataset.registrationFile;
+      if(input.dataset.mode==='replace'){
+        (runtimeFiles[key]||[]).forEach(file=>URL.revokeObjectURL(file.url));
+        runtimeFiles[key]=[];
+      }
+      const entries=files.map(file=>({url:URL.createObjectURL(file),name:file.name,type:file.type,size:file.size}));
+      runtimeFiles[key]=[...(runtimeFiles[key]||[]),...entries];
+      state.docs[key]=runtimeFiles[key].map(({name,type,size})=>({name,type,size,uploadedAt:stamp(),demo:false}));
+      save();renderRegistrationDocs();
+    }));
+    list.querySelectorAll('[data-registration-remove]').forEach(button=>button.addEventListener('click',()=>{
+      const key=button.dataset.registrationRemove,index=Number(button.dataset.index);
+      const [removed]=runtimeFiles[key].splice(index,1);
+      if(removed?.url) URL.revokeObjectURL(removed.url);
+      if(!runtimeFiles[key].length){delete runtimeFiles[key];delete state.docs[key];}
+      else state.docs[key]=runtimeFiles[key].map(({name,type,size})=>({name,type,size,uploadedAt:stamp(),demo:false}));
+      save();renderRegistrationDocs();
+    }));
+    list.querySelectorAll('[data-registration-view]').forEach(button=>button.addEventListener('click',()=>openRegistrationViewer(button.dataset.registrationView,Number(button.dataset.index))));
+    const total=requiredDocTotal(),pct=total?Math.round(requiredDocCount()/total*100):0;
+    content.querySelector('[data-donut]').style.setProperty('--p',pct);
+    content.querySelector('[data-doc-percent]').textContent=pct+'%';
+    content.querySelector('[data-doc-summary]').innerHTML=rows.map(row=>{
+      const slots=registration.slots(row,state.form,state.docContext),done=slots.filter(slot=>registrationHasFile(`${row.key}:${slot.id}`)).length;
+      return `<div class="checkline"><span>${row.number}. ${escapeHtml(row.title)}${row.optional?' <small>(opcional)</small>':''}</span><b>${slots.length?`${done}/${slots.length}`:'Elegir supuesto'}</b></div>`;
+    }).join('');
+    const note=content.querySelector('[data-docs-source-note]');
+    note.innerHTML='<b>Alcance del prototipo:</b> las selecciones existen solo durante esta sesión; original y copia son indicaciones para presentación física. La presencia, vigencia, firma y autenticidad del contenido requieren revisión humana.';
+    content.querySelector('[data-return-form]').onclick=()=>route('form');
+  }
+
+  function openRegistrationViewer(key,index){
+    const entry=registrationSlots().find(slot=>slot.key===key),file=runtimeFiles[key]?.[index];
+    if(!entry || !file)return;
+    const preview=(file.type.startsWith('image/')||/\.(jpe?g|png)$/i.test(file.name))?`<img class="document-preview-image" src="${file.url}" alt="Vista previa de ${escapeHtml(file.name)}">`:`<iframe class="document-preview-frame" src="${file.url}" title="Vista previa de ${escapeHtml(file.name)}"></iframe>`;
+    modal.classList.add('wide-modal');
+    modalBody.innerHTML=`<div class="document-meta"><div><small>Requisito</small><strong>${entry.row.number}. ${escapeHtml(entry.row.title)}</strong></div><div><small>Archivo</small><strong>${escapeHtml(file.name)}</strong></div><div><small>Tamaño</small><strong>${escapeHtml(formatBytes(file.size))}</strong></div><div><small>Disponibilidad</small><strong>Solo esta sesión</strong></div></div>${preview}`;
+    modalActions.innerHTML='<button class="btn btn-primary" id="closeDocumentViewer" type="button">Cerrar</button>';
+    openModal('Documento del expediente digital');
+    $('#closeDocumentViewer').onclick=closeModal;
+  }
+
   function openDocumentViewer(key){
-    const def=currentDocTypes().find(([k])=>k===key)||documents[key],info=docInfo(state.docs[key]); if(!info)return;
+    const def=currentDocTypes().find(([k])=>k===key)||documents[key],info=docInfo(state.docs[key]); if(!info||!hasLegacyFile(key))return;
     const live=runtimeFiles[key];
     let preview='';
     if(live?.url){
@@ -483,9 +624,16 @@
     ];
     const infoHtml=sections.map(([title,rows],i)=>`<details class="exp-section" ${i===0?'open':''}><summary>${escapeHtml(title)}</summary><div class="exp-grid">${rows.map(([a,b])=>`<div><small>${escapeHtml(a)}</small><strong>${escapeHtml(b||'—')}</strong></div>`).join('')}</div></details>`).join('');
     const defs=currentDocTypes();
-    const docsHtml=defs.map(([k,n,d,required])=>{const info=docInfo(state.docs[k]);return `<div class="authority-doc-row"><div><div class="doc-title-line"><strong>${escapeHtml(n)}</strong><span class="doc-requirement ${required===false?'optional':'required'}">${required===false?'Condicional / opcional':'Requerido'}</span></div><small>${escapeHtml(d)}</small>${info?`<span>✓ ${escapeHtml(info.name)} · ${escapeHtml(formatBytes(info.size))}</span>`:'<span class="missing-doc">Pendiente</span>'}</div>${info?`<button class="btn btn-secondary btn-small" type="button" data-authority-view-doc="${k}">Ver documento</button>`:''}</div>`}).join('');
+    const docsHtml=isFullRegistration()?registration.visible(f,state.docContext).map(row=>{
+      const slots=registration.slots(row,f,state.docContext);
+      return `<div class="authority-doc-row"><div><div class="doc-title-line"><strong>${row.number}. ${escapeHtml(row.title)}</strong><span class="doc-requirement ${row.optional?'optional':'required'}">${row.optional?'Opcional':'Requerido'}</span></div><small>${escapeHtml(row.hint)} · Presentación física: ${escapeHtml(row.physical)}</small>${slots.length?slots.map(slot=>{
+        const key=`${row.key}:${slot.id}`,files=runtimeFiles[key]||[];
+        return `<div class="authority-slot"><b>${escapeHtml(slot.label)}:</b> ${files.length?files.map((file,index)=>`<button class="btn btn-secondary btn-small" type="button" data-registration-view="${escapeHtml(key)}" data-index="${index}">${escapeHtml(file.name)}</button>`).join(' '):'<span class="missing-doc">Pendiente</span>'}</div>`;
+      }).join(''):'<span class="missing-doc">Supuesto pendiente de seleccionar</span>'}</div></div>`;
+    }).join(''):defs.map(([k,n,d,required])=>{const info=docInfo(state.docs[k]),live=hasLegacyFile(k);return `<div class="authority-doc-row"><div><div class="doc-title-line"><strong>${escapeHtml(n)}</strong><span class="doc-requirement ${required===false?'optional':'required'}">${required===false?'Condicional / opcional':'Requerido'}</span></div><small>${escapeHtml(d)}</small>${live?`<span>✓ ${escapeHtml(info.name)} · ${escapeHtml(formatBytes(info.size))}</span>`:'<span class="missing-doc">Pendiente: archivo no disponible en esta sesión</span>'}</div>${live?`<button class="btn btn-secondary btn-small" type="button" data-authority-view-doc="${k}">Ver documento</button>`:''}</div>`}).join('');
     el.innerHTML=`<div class="expedient-tabs"><div><span class="kicker">Información capturada</span>${infoHtml}</div><div><span class="kicker">Documentos digitales · ${escapeHtml(f.tipoPersona)}</span><div class="authority-doc-list">${docsHtml}</div><div class="source-note"><b>Control documental:</b> la autoridad puede cotejar los archivos cargados contra originales o copias certificadas cuando corresponda y registrar observaciones dentro de la misma bitácora.</div></div></div>`;
     el.querySelectorAll('[data-authority-view-doc]').forEach(b=>b.onclick=()=>openDocumentViewer(b.dataset.authorityViewDoc));
+    el.querySelectorAll('[data-registration-view]').forEach(b=>b.onclick=()=>openRegistrationViewer(b.dataset.registrationView,Number(b.dataset.index)));
   }
 
   function reviewChecksForCurrent(){
@@ -497,19 +645,19 @@
         ['identificaciones','Identificaciones oficiales vigentes'],
         ['carta','Carta Compromiso revisada conforme al requisito'],
         ['constancia','Constancia de Situación Fiscal actualizada'],
-        ['declaracion','Declaración anual, acuse e información financiera revisados'],
+        ['declaracion','Declaración fiscal o alternativa aplicable e información financiera revisadas'],
         ['firmaContador','Firma del Contador Público consistente con su identificación'],
         ['cedulaContador','Número de cédula del Contador Público corroborado'],
         ['estadosMes','Estados financieros del mes inmediato anterior dentro del periodo aceptable'],
         ['ratios','Parámetros financieros: endeudamiento ≤ 0.40, liquidez ≥ 1.0, solvencia ≥ 1.0'],
-        ['fotografias','Fotografías del representante legal revisadas'],
+        ['fotografias','Fotografías infantiles y de domicilios revisadas'],
         ['datosCedula','Datos de la Cédula corroborados'],
         ['firmaRepresentante','Documentación que requiere firma suscrita por el representante legal']
       ];
       if(moral) rows.splice(2,0,['capital','Capital social concordante con declaración, balance e instrumento legal']);
-      if(moral) rows.splice(3,0,['asamblea','Asamblea de socios por futuros aumentos de capital, sólo si aplica']);
+      // No se exige un acta de asamblea ajena al catálogo documental vigente.
       if(t==='Renovación'){
-        rows.push(['cedulaAnterior','Cédula anterior integrada para Renovación']);
+        rows.push(['cedulaAnterior','Cédula anterior o constancia de extravío integrada para Renovación']);
         rows.push(['cartaNoCambios','Carta bajo protesta respecto de cambios fiscales o comerciales revisada']);
       }
       return rows;
@@ -555,6 +703,14 @@
     $('#simulateHit').onclick=()=>{state.sanctionsCheck={result:'hit',provider:state.form.razonSocial||state.account.name||'',rfc:state.form.rfc||state.account.rfc||'',checkedAt:stamp(),source:'Registro de Empresas Objetadas y Sancionadas · simulación'};state.expedienteValidado=false;addTimeline('Consulta de sanciones','Se simuló una coincidencia; la autorización quedó bloqueada');addMessage('Sistema','La consulta demostrativa al Registro de Empresas Objetadas y Sancionadas arrojó una coincidencia. La solicitud no puede autorizarse mientras subsista este resultado.','system');save();closeModal();renderReviewDetail();};
   }
 
+  function validateGeolocation(){
+    if(!isFullRegistration())return true;
+    const pending=geo.missing(state.form);
+    if(!pending.length)return true;
+    toast(`${geo.MESSAGE} Domicilio${pending.length>1?'s':''}: ${pending.join(' y ')}.`);
+    return false;
+  }
+
   function openReviewModal(){
     const missing=[],f=state.form;
     if(isAdditionalMovement()){
@@ -566,20 +722,30 @@
       if(f.tipoSolicitud==='Renovación'&&!String(f.folioPrevio||'').trim())missing.push('Folio / registro previo');
       if(!f.actividad?.length)missing.push('Actividad preponderante');if(!f.giros?.some(Boolean))missing.push('Al menos un giro');if(!f.declaracion)missing.push('Declaración');
     }
-    const missingDocs=requiredDocTypes().filter(([k])=>!state.docs[k]).map(([,n])=>n);
+    if(isFullRegistration()) geo.missing(f).forEach(p=>missing.push(`${geo.MESSAGE} Domicilio ${p}`));
+    const pending=isFullRegistration()?registration.pendingChoices(f,state.docContext):[];
+    const missingDocs=isFullRegistration()?registrationMissing().map(({row,slot})=>`${row.number}. ${row.title} — ${slot.label}`):requiredDocTypes().filter(([k])=>!hasLegacyFile(k)).map(([,n])=>n);
     modalBody.innerHTML=`<p>Avance de captura: <b>${progress()}%</b>. Documentos obligatorios: <b>${requiredDocCount()}/${requiredDocTotal()}</b>.</p>${missing.length?`<div class="observation-box"><strong>Información pendiente</strong><p>${missing.join(', ')}.</p></div>`:`<div class="success-box"><strong>Captura mínima completa.</strong><p>La información básica del trámite está completa.</p></div>`}${missingDocs.length?`<div class="observation-box mt24"><strong>Expediente documental incompleto</strong><p>Falta integrar: ${missingDocs.map(escapeHtml).join(', ')}.</p></div>`:`<div class="success-box mt24"><strong>Expediente documental obligatorio integrado.</strong><p>Al enviar, la autoridad podrá revisar cada documento digital, retroalimentar y citar para cotejo cuando proceda.</p></div>`}`;
-    const blocked=missing.length||missingDocs.length;
+    if(pending.length) modalBody.innerHTML+=`<div class="observation-box mt24"><strong>Supuestos por confirmar</strong><p>${pending.map(escapeHtml).join(', ')}.</p></div>`;
+    const blocked=missing.length||missingDocs.length||pending.length;
     modalActions.innerHTML=`<button class="btn btn-secondary" id="cancelSend" type="button">Cancelar</button><button class="btn btn-primary" id="confirmSend" type="button" ${blocked?'disabled':''}>Enviar a validación</button>`;
-    openModal('Revisión previa');$('#cancelSend').onclick=closeModal;const c=$('#confirmSend');if(c)c.onclick=()=>{submitRequest();closeModal();route('tracking');};
+    openModal('Revisión previa');$('#cancelSend').onclick=closeModal;const c=$('#confirmSend');if(c)c.onclick=()=>{if(submitRequest()){closeModal();route('tracking');}};
   }
 
   function submitRequest(){
+    if(!validateGeolocation())return false;
+    if((isFullRegistration() && (registrationMissing().length || registration.pendingChoices(state.form,state.docContext).length)) ||
+        (!isFullRegistration() && requiredDocTypes().some(([k])=>!hasLegacyFile(k)))){
+      toast('El expediente documental tiene archivos pendientes. Selecciónelos antes de enviar.');
+      return false;
+    }
     if(!state.folio)state.folio=`PROV-${new Date().getFullYear()}-${String(Math.floor(1000+Math.random()*9000))}`;
     state.status='En validación';
     state.assignmentStatus='Pendiente de asignación'; state.assignedTo=''; state.assignedAt=''; state.assignmentReceivedAt=stamp();
     state.assignmentHistory=[{when:state.assignmentReceivedAt,movement:'Solicitud recibida',user:'Sistema',responsible:'Sin asignar'}];
     addTimeline('Solicitud enviada','Expediente recibido por la autoridad y pendiente de asignación a un analista o revisor');
     addMessage('Sistema',`La solicitud de ${state.form.tipoSolicitud} fue recibida por la autoridad y está pendiente de asignación.`,'system');save();
+    return true;
   }
 
   function renderTracking(){
@@ -599,6 +765,7 @@
     } else {
       content.querySelector('[data-provider-send]').onclick=()=>{
         const ta=content.querySelector('[data-provider-message]'),body=ta.value.trim();if(!body){toast('Escriba una respuesta o aclaración.');return;}
+        if(!validateGeolocation())return;
         addMessage('Proveedor',body); state.status='En validación'; addTimeline('Respuesta del proveedor','Aclaración enviada en línea y expediente reenviado a validación');save(); renderTracking();
       };
     }
@@ -638,6 +805,8 @@
       const file=p.querySelector('[data-pay-file]').files[0];
       if(!ref||!file){toast('Capture la referencia del pago y seleccione el comprobante.');return;}
       state.payment.providerReference=ref;
+      if(runtimeFiles.paymentProof?.url)URL.revokeObjectURL(runtimeFiles.paymentProof.url);
+      runtimeFiles.paymentProof={url:URL.createObjectURL(file),name:file.name,type:file.type};
       state.payment.evidence=file.name;
       state.payment.reported=true;
       state.payment.reportedAt=stamp();
@@ -899,6 +1068,8 @@
       addMessage('Autoridad',body);
       if(state.status==='Pago reportado' && state.payment){
         state.payment.reported=false;state.payment.evidence='';state.payment.providerReference='';state.status='Pago de derechos requerido';
+        if(runtimeFiles.paymentProof?.url)URL.revokeObjectURL(runtimeFiles.paymentProof.url);
+        delete runtimeFiles.paymentProof;
         addTimeline('Comprobante observado','La autoridad solicitó corrección o complemento del comprobante de pago');
       } else if(state.status==='Pago de derechos requerido' && state.payment){
         addTimeline('Ajuste de pago notificado','La autoridad envió una aclaración relacionada con el pago de derechos');
@@ -911,6 +1082,11 @@
     cotejoBtn.onclick=openCotejoModal;
     sanctionsBtn.onclick=openSanctionsCheckModal;
     approveBtn.onclick=()=>{
+      if(!['Pago reportado','Pago de derechos requerido','Cédula expedida'].includes(state.status) &&
+         (requiredDocCount()<requiredDocTotal() ||
+          (isFullRegistration() && registration.pendingChoices(state.form,state.docContext).length))){
+        toast('Faltan archivos o supuestos obligatorios del expediente; revise los requisitos antes de validar.');return;
+      }
       if(state.status!=='Pago reportado' && state.status!=='Pago de derechos requerido' && state.status!=='Cédula expedida' && !reviewChecklistComplete()){toast('Complete la lista de revisión previa del expediente antes de validar favorablemente.');return;}
       if(state.cotejo && !state.cotejo.completed){toast('Existe un cotejo pendiente. Registre primero su realización para continuar con la validación del expediente.');return;}
       if(state.status!=='Pago reportado' && state.status!=='Pago de derechos requerido' && state.status!=='Cédula expedida' && requiresSanctionsCheck()){
@@ -944,9 +1120,14 @@
       cotejoBtn.disabled=true;sanctionsBtn.disabled=true;observeBtn.disabled=true;obs.disabled=true;
     } else {
       approveBtn.textContent='Validar expediente y notificar pago';
+      if(requiredDocCount()<requiredDocTotal() ||
+         (isFullRegistration() && registration.pendingChoices(state.form,state.docContext).length)){
+        approveBtn.disabled=true;
+        approveBtn.textContent='Pendiente expediente documental';
+      }
       if(!reviewChecklistComplete()){
         approveBtn.disabled=true;
-        approveBtn.textContent='Pendiente lista de revisión';
+        if(!approveBtn.textContent.includes('documental'))approveBtn.textContent='Pendiente lista de revisión';
       }
       if(requiresSanctionsCheck()){
         if(!state.sanctionsCheck){approveBtn.disabled=true;approveBtn.textContent='Pendiente consulta de Contraloría';}
@@ -972,7 +1153,7 @@
     const pay=state.payment||{};
     const fee=feeReference();
     const controlText=requiresSanctionsCheck()?'Previamente quedó documentada la consulta al Registro de Empresas Objetadas y Sancionadas sin coincidencias. ':'';
-    modalBody.innerHTML=`<p>El expediente de <b>${escapeHtml(state.form.tipoSolicitud)}</b> se registrará como validado favorablemente. ${controlText}A continuación se notificará al proveedor que debe realizar el pago correspondiente antes de que pueda expedirse la cédula.</p><div class="form-grid cols2"><label class="span2">Concepto<input id="payConcept" value="${escapeHtml(pay.concept||`Pago de aprovechamiento / cuota de recuperación · ${state.form.tipoSolicitud}`)}"></label><label>Monto (MXN)<input id="payAmount" type="number" min="0" step="0.01" value="${escapeHtml(pay.amount||String(fee))}" placeholder="Capture el monto aplicable"></label><label>Fecha límite <small>(si aplica)</small><input id="payDue" type="date" value="${escapeHtml(pay.dueDate||'')}"></label><label class="span2">Referencia / línea de captura<input id="payReference" value="${escapeHtml(pay.reference||'')}" placeholder="Referencia, línea de captura o identificador de pago"></label><label class="span2">Instrucciones para el proveedor<textarea id="payInstructions" rows="4">${escapeHtml(pay.instructions||'Realice el pago conforme a la referencia indicada y cargue el comprobante en este portal para su validación.')}</textarea></label></div><div class="source-note"><b>Referencia documental 2025:</b> el documento aportado señala $944.00 para Alta y Renovación y $472.00 para Modificación, Duplicado y Reposición. En producción, los montos deben parametrizarse conforme a la disposición vigente al momento del trámite.</div>`;
+    modalBody.innerHTML=`<p>El expediente de <b>${escapeHtml(state.form.tipoSolicitud)}</b> se registrará como validado favorablemente. ${controlText}A continuación se notificará al proveedor que debe realizar el pago correspondiente antes de que pueda expedirse la cédula.</p><div class="form-grid cols2"><label class="span2">Concepto<input id="payConcept" value="${escapeHtml(pay.concept||`Pago de aprovechamiento / cuota de recuperación · ${state.form.tipoSolicitud}`)}"></label><label>Monto (MXN)<input id="payAmount" type="number" min="0" step="0.01" value="${escapeHtml(pay.amount||String(fee))}" placeholder="Capture el monto aplicable"></label><label>Fecha límite <small>(si aplica)</small><input id="payDue" type="date" value="${escapeHtml(pay.dueDate||'')}"></label><label class="span2">Referencia / línea de captura<input id="payReference" value="${escapeHtml(pay.reference||'')}" placeholder="Referencia, línea de captura o identificador de pago"></label><label class="span2">Instrucciones para el proveedor<textarea id="payInstructions" rows="4">${escapeHtml(pay.instructions||'Realice el pago conforme a la referencia indicada y cargue el comprobante en este portal para su validación.')}</textarea></label></div><div class="source-note"><b>Referencia documental 2026:</b> el documento aportado señala $983.00 para Alta y Renovación y $492.00 para Modificación, Duplicado y Reposición. En producción, los montos deben parametrizarse conforme a la disposición vigente al momento del trámite.</div>`;
     modalActions.innerHTML=`<button class="btn btn-secondary" id="cancelPayment" type="button">Cancelar</button><button class="btn btn-primary" id="confirmPayment" type="button">${editing?'Actualizar notificación':'Validar expediente y notificar pago'}</button>`;
     openModal(editing?'Notificación de pago de derechos':'Validar expediente y notificar pago');
     $('#cancelPayment').onclick=closeModal;
@@ -989,7 +1170,7 @@
   }
 
   function openIssueCedulaModal(){
-    if(!state.payment||!state.payment.reported){toast('No existe un comprobante de pago reportado por el proveedor.');return;}
+    if(!state.payment||!state.payment.reported||!runtimeFiles.paymentProof?.url){toast('El comprobante de pago no está disponible en esta sesión. Solicite volver a seleccionarlo.');return;}
     const suggested=`CED-DEMO-${new Date().getFullYear()}-${String(Math.floor(10000+Math.random()*90000))}`;
     modalBody.innerHTML=`<p>Confirme que el comprobante de pago fue validado. La expedición genera una cédula demostrativa basada en la estructura visual de la muestra aportada, con anverso, reverso y elementos de validación.</p><div class="form-grid cols2"><label>Número / folio de cédula<input id="cedulaNumber" value="${escapeHtml(state.cedula?.number||suggested)}"></label><label>Fecha de expedición<input id="cedulaDate" type="date" value="${escapeHtml(state.cedula?.date||today())}"></label><label>Empresa Mexiquense<select id="empresaMexiquense"><option>No</option><option>Sí</option></select></label><label>Servidor público que autoriza<input id="cedulaAuthorizer" value="${escapeHtml(state.cedula?.authorizerName||'Servidor público autorizado (DEMO)')}"></label><label class="span2">Cargo / unidad que autoriza<input id="cedulaAuthorizerTitle" value="${escapeHtml(state.cedula?.authorizerTitle||'Dirección de Investigación de Mercado')}"></label></div><div class="source-note"><b>Seguridad de demostración:</b> al expedir, el sistema generará un código de seguridad, una huella digital y un sello gráfico 2D. La cédula quedará disponible en la consulta pública de este prototipo. En producción estos valores deberán emitirse y verificarse desde infraestructura de servidor.</div>`;
     modalActions.innerHTML=`<button class="btn btn-secondary" id="cancelIssue" type="button">Cancelar</button><button class="btn btn-primary" id="confirmIssue" type="button">Validar pago y expedir cédula</button>`;
@@ -1024,27 +1205,15 @@
   function loadDemo(){
     state=structuredClone(defaultState);state.accountRegistered=true;state.account={name:'Tecnología Mexiquense Demo, S.A. de C.V.',rfc:'TMD180101AA1',email:'contacto@demo.mx'};
     state.form={...structuredClone(defaultForm),tipoSolicitud:'Renovación',fechaElaboracion:today(),folioPrevio:'PAD-2025-00481',razonSocial:'Tecnología Mexiquense Demo, S.A. de C.V.',tipoPersona:'Persona jurídica colectiva',antigRamo:'8',antigGem:'3',fiscalCalle:'Av. Ejemplo 120, Col. Centro',fiscalCp:'50000',fiscalMunicipio:'Toluca',fiscalEntidad:'Estado de México',fiscalTelefono:'722 000 0000',fiscalEmail:'contacto@demo.mx',fiscalWeb:'https://demo.mx',comercialCalle:'Av. Ejemplo 120, Col. Centro',comercialCp:'50000',comercialMunicipio:'Toluca',comercialEntidad:'Estado de México',comercialTelefono:'722 000 0000',comercialEmail:'ventas@demo.mx',comercialWeb:'https://demo.mx',actaConstitutiva:'Escritura 1234',idCif:'CIF-DEMO-001',rfc:'TMD180101AA1',representante:'Laura Hernández Demo',poderNotarial:'Poder 5678',descripcionActividad:'Comercialización y prestación de servicios de tecnologías de información.',actividad:['Distribuidor','Prestador de servicios'],socios:['Laura Hernández Demo','Carlos Méndez Demo','',''],giros:['Equipo de cómputo','Licenciamiento de software','Servicios de soporte técnico','','',''],pasivoCirculante:'180000',pasivoCapital:'650000',activoCirculante:'500000',almacen:'50000',personalAdmin:'5',personalTecnico:'12',personalObrero:'0',propiaAdmin:'80',propiaProd:'0',propiaVentas:'35',propiaAlmacen:'60',proveedores:['Proveedor Demo A','Proveedor Demo B','',''],clientes:['Cliente Demo 1','Cliente Demo 2','',''],condiciones:['Asesoría técnica','Entrega en tiempo','Crédito','Servicio de mantenimiento'],declaracion:true,nombreFirma:'Laura Hernández Demo'};
-    state.docs={
-      acta:{name:'acta_y_modificacion_demo.pdf',type:'application/pdf',size:245760,uploadedAt:'Dato demostrativo',demo:true},
-      poder:{name:'poder_demo.pdf',type:'application/pdf',size:302110,uploadedAt:'Dato demostrativo',demo:true},
-      identificacion:{name:'identificacion_demo.pdf',type:'application/pdf',size:118000,uploadedAt:'Dato demostrativo',demo:true},
-      cartaCompromiso:{name:'carta_compromiso_demo.pdf',type:'application/pdf',size:98000,uploadedAt:'Dato demostrativo',demo:true},
-      constanciaFiscal:{name:'constancia_fiscal_demo.pdf',type:'application/pdf',size:182300,uploadedAt:'Dato demostrativo',demo:true},
-      declaracionAnual:{name:'declaracion_anual_demo.pdf',type:'application/pdf',size:360000,uploadedAt:'Dato demostrativo',demo:true},
-      estadosFinDeclaracion:{name:'estados_declaracion_demo.pdf',type:'application/pdf',size:220000,uploadedAt:'Dato demostrativo',demo:true},
-      contador:{name:'contador_cedula_ine_demo.pdf',type:'application/pdf',size:145000,uploadedAt:'Dato demostrativo',demo:true},
-      estadosMes:{name:'estados_mes_demo.pdf',type:'application/pdf',size:396800,uploadedAt:'Dato demostrativo',demo:true},
-      cedulaFormato:{name:'cedula_registro_demo.pdf',type:'application/pdf',size:210000,uploadedAt:'Dato demostrativo',demo:true},
-      fotos:{name:'fotografias_demo.pdf',type:'application/pdf',size:180000,uploadedAt:'Dato demostrativo',demo:true},
-      cedulaAnterior:{name:'cedula_anterior_demo.pdf',type:'application/pdf',size:170000,uploadedAt:'Dato demostrativo',demo:true},
-      cartaNoCambios:{name:'carta_no_cambios_demo.pdf',type:'application/pdf',size:95000,uploadedAt:'Dato demostrativo',demo:true}
-    };
+    state.docContext={fiscalCase:'annual',imss:'yes',previousCedula:'available',changes:'no'};
+    // El ejemplo carga datos de la solicitud, no archivos simulados que aparenten estar disponibles.
+    state.docs={};
     state.status='Borrador';state.timeline=[{label:'Renovación iniciada',detail:'Expediente recuperado para actualización en línea',when:stamp()}];state.messages=[];state.cotejo=null;state.expedienteValidado=false;state.payment=null;state.cedula=null;state.sanctionsCheck=null;state.reviewChecklist={};save();
   }
   function openModal(title){$('#modalTitle').textContent=title;modal.classList.remove('hidden');}
   function closeModal(){modal.classList.add('hidden');modal.classList.remove('wide-modal');}
   function toast(msg){modalBody.innerHTML=`<p>${escapeHtml(msg)}</p>`;modalActions.innerHTML='<button class="btn btn-primary" id="okToast" type="button">Aceptar</button>';openModal('Información');$('#okToast').onclick=closeModal;}
-  function reset(){localStorage.removeItem(STORAGE);state=structuredClone(defaultState);showPublic();}
+  function reset(){localStorage.removeItem(STORAGE);releaseRuntimeFiles();state=structuredClone(defaultState);showPublic();}
 
   $('#newProviderBtn').onclick=()=>showAccess('new');
   $('#existingProviderBtn').onclick=()=>showAccess('existing');
