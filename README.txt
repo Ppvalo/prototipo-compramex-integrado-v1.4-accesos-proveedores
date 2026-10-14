@@ -1,3 +1,9 @@
+ACTUALIZACIÓN DEL EXPEDIENTE DE PROVEEDORES · OCTUBRE 2026
+Alta y Renovación utilizan el PDF 2026 según el guion adjunto por el usuario.
+Se mantienen los otros movimientos, el catálogo de bienes y los estudios de mercado.
+Véase AJUSTES_V1_9.md para reglas actuales, límites y pruebas. Los apartados
+históricos de este archivo describen versiones anteriores y no sustituyen el catálogo actual.
+
 COMPRAMEX integrado v1.3 · Dependencias y roles
 
 PROTOTIPO MÓDULO DE PROVEEDORES EDOMÉX · V8
@@ -26,17 +32,17 @@ AJUSTES PRINCIPALES V8
 - La revisión previa incorpora referencias a vigencia de identificaciones, constancia fiscal, estados financieros y parámetros financieros.
 - El control demostrativo del Registro de Empresas Objetadas y Sancionadas se exige antes de autorizar el Alta; para otros movimientos se muestra como control parametrizable.
 - Después de la validación favorable se notifica el pago y, una vez validado, se expide la Cédula demostrativa.
-- Montos de referencia tomados del documento 2025:
-  - Alta / Renovación: $944.00
-  - Modificación / Duplicado / Reposición: $472.00
-  Estos importes deben parametrizarse en producción conforme a la disposición vigente.
+- Montos de referencia actualizados al documento 2026:
+  - Alta / Renovación: $983.00
+  - Modificación / Duplicado / Reposición: $492.00
+  Se muestran solo después de la validación favorable; deben verificarse en producción.
 
-REGLAS DOCUMENTALES REPRESENTADAS
-- El documento aportado indica registro en COMPRAMEX y carga de documentos en formato PDF.
-- Si la información es correcta se notifica al proveedor para agendar cita.
-- Para cotejo se presentan originales o copias certificadas y copias simples.
+REGLAS DOCUMENTALES REPRESENTADAS (ALTA Y RENOVACIÓN, 2026)
+- Catálogo numerado 1–23 según persona y condiciones aplicables; el certificado es opcional.
+- PDF para documentos digitalizados e imágenes JPG/PNG para fotografías; máximo 12 MB por archivo conforme al límite ya presente en el prototipo.
+- Original/copia indica presentación física para cotejo, no significa dos cargas digitales ni acredita autenticidad.
 - Las firmas autógrafas señaladas en los requisitos deben realizarse en tinta azul.
-- El prototipo conserva la posibilidad de retroalimentación en línea antes de la cita de cotejo.
+- Las selecciones de archivos se mantienen solo durante la sesión; tras recargar, los metadatos por sí solos no satisfacen el requisito.
 
 FLUJO DEMOSTRATIVO
 Portal abierto -> Registro / acceso -> Selección de trámite -> Captura de solicitud/Cédula -> Expediente documental por tipo de persona -> Validación de autoridad -> Retroalimentación -> Cotejo cuando proceda -> Control previo aplicable -> Validación favorable -> Notificación de pago -> Validación del pago -> Expedición de Cédula -> Consulta pública.

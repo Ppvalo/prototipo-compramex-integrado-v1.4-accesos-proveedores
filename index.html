@@ -4,7 +4,10 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Prototipo · COMPRAMEX · Plataforma Mexiquense de Contratación Pública</title>
+  <link rel="stylesheet" href="assets/vendor/leaflet/leaflet.css" />
   <link rel="stylesheet" href="css/styles.css" />
+  <link rel="stylesheet" href="css/provider-geolocation.css" />
+  <link rel="stylesheet" href="css/market-adjustments.css" />
 </head>
 <body>
   <div id="app" class="app-shell">
@@ -33,7 +36,7 @@
             <p>Esta primera versión integra el <b>Módulo de Proveedores</b> existente y el nuevo <b>Módulo de Catálogo de Bienes y Servicios y Estudios de Mercado</b>, conservando una arquitectura visual común y dejando preparados accesos para futuros módulos del ciclo de adquisiciones.</p>
             <div class="public-actions">
               <button class="btn btn-primary" id="goModulesBtn" type="button">Explorar módulos</button>
-              <button class="btn btn-secondary" id="catalogAccessBtn" type="button">Acceso institucional · Catálogo y Estudios</button>
+              <button class="btn btn-secondary" id="catalogAccessBtn" type="button">Catálogo y Estudios de Mercado</button>
             </div>
             <p class="micro">Prototipo demostrativo Front-End. Las identidades, validaciones, firmas e integraciones institucionales son simuladas.</p>
           </div>
@@ -170,30 +173,30 @@
       </section>
 
       <section id="requisitosPortal" class="portal-section">
-        <div class="section-heading"><div><span class="kicker">Requisitos documentales</span><h3>Expediente según trámite y tipo de persona</h3></div><p>El prototipo utiliza el documento de requisitos aportado como base para construir listas diferenciadas para Persona Jurídico Colectiva y Persona Física, así como para los movimientos adicionales del padrón.</p></div>
+        <div class="section-heading"><div><span class="kicker">Requisitos documentales</span><h3>Expediente según trámite y tipo de persona</h3></div><p>Alta y Renovación aplican el catálogo documental 2026 según tipo de persona y condiciones del expediente. Los demás movimientos conservan sus requisitos anteriores.</p></div>
         <div class="requirements-grid">
           <article class="card req-card">
             <div class="req-head"><span class="req-icon">A</span><div><h3>Alta</h3><small>Persona Jurídico Colectiva / Persona Física</small></div></div>
             <ul class="clean-list">
-              <li>Documentos constitutivos o acta de nacimiento, identificación y representación, según el tipo de persona.</li>
-              <li>Carta Compromiso de Actualización de Datos y Documentos.</li>
-              <li>Constancia de Situación Fiscal y declaración fiscal del ejercicio inmediato anterior.</li>
-              <li>Información del contador y estados financieros conforme a la revisión previa.</li>
-              <li>Cédula de Registro e Identificación y dos fotografías del representante legal.</li>
-              <li>Certificado de Empresa Mexiquense: opcional; otros documentos pueden aplicar de forma condicional.</li>
+              <li>Oficio de solicitud, Cédula de registro, acta constitutiva o de nacimiento, identificación y CURP, según el tipo de persona.</li>
+              <li>Carta Compromiso y manifestación relativa al artículo 69-B del CFF.</li>
+              <li>Constancia fiscal, declaración o alternativa aplicable, y opiniones de cumplimiento SAT e IMSS o escrito sustituto.</li>
+              <li>Estados financieros recientes y anexos del contador; comprobantes, fotografías y ubicación de domicilios fiscal y comercial.</li>
+              <li>Currículum firmado y dos fotografías infantiles del representante legal o propietario.</li>
+              <li>Certificado de Empresa Mexiquense opcional; oficio de notificaciones si el domicilio fiscal está fuera del Estado de México.</li>
             </ul>
-            <div class="fee-note"><b>Referencia del documento 2025:</b> $944.00 una vez autorizada la cédula.</div>
+            <div class="fee-note">El pago de derechos se notificará después de la validación favorable del expediente.</div>
             <button class="btn btn-primary full" type="button" data-public-action="new">Registrarme e iniciar</button>
           </article>
           <article class="card req-card">
             <div class="req-head"><span class="req-icon">R</span><div><h3>Renovación</h3><small>Proveedor ya registrado</small></div></div>
             <ul class="clean-list">
-              <li>Actualiza el expediente documental correspondiente a su tipo de persona.</li>
-              <li>Debe integrar la <b>cédula anterior</b>.</li>
+              <li>Presenta los mismos documentos de Alta aplicables a su tipo de persona y situación fiscal.</li>
+              <li>Adjunta la <b>cédula anterior</b> o, si se extravió, la constancia correspondiente.</li>
               <li>Debe presentar carta bajo protesta respecto de cambios fiscales o comerciales y, si existieron, documentación que los acredite.</li>
               <li>Se mantienen controles de revisión de constancia fiscal, estados financieros, firmas, fotografías y parámetros financieros.</li>
             </ul>
-            <div class="fee-note"><b>Referencia del documento 2025:</b> $944.00 una vez autorizada la cédula.</div>
+            <div class="fee-note">El pago de derechos se notificará después de la validación favorable del expediente.</div>
             <button class="btn btn-secondary full" type="button" data-public-action="existing">Ingresar para renovar</button>
           </article>
           <article class="card req-card">
@@ -204,7 +207,7 @@
               <li>Dos fotografías recientes tamaño infantil del representante legal.</li>
               <li>Cédula de proveedor en original.</li>
             </ul>
-            <div class="fee-note"><b>Referencia del documento 2025:</b> $472.00 una vez autorizado el movimiento.</div>
+            <div class="fee-note">El pago de derechos se notificará después de la validación favorable del expediente.</div>
           </article>
           <article class="card req-card">
             <div class="req-head"><span class="req-icon">D</span><div><h3>Duplicado</h3><small>Proveedor registrado</small></div></div>
@@ -213,7 +216,7 @@
               <li>Poder notarial, original y copia.</li>
               <li>Dos fotografías recientes tamaño infantil del representante legal.</li>
             </ul>
-            <div class="fee-note"><b>Referencia del documento 2025:</b> $472.00 una vez autorizado el movimiento.</div>
+            <div class="fee-note">El pago de derechos se notificará después de la validación favorable del expediente.</div>
           </article>
           <article class="card req-card">
             <div class="req-head"><span class="req-icon">RP</span><div><h3>Reposición</h3><small>Pérdida de cédula</small></div></div>
@@ -223,7 +226,7 @@
               <li>Denuncia ante la Fiscalía General de Justicia con número de cédula y razón social.</li>
               <li>Dos fotografías recientes tamaño infantil del representante legal.</li>
             </ul>
-            <div class="fee-note"><b>Referencia del documento 2025:</b> $472.00 una vez autorizado el movimiento.</div>
+            <div class="fee-note">El pago de derechos se notificará después de la validación favorable del expediente.</div>
           </article>
           <article class="card req-card">
             <div class="req-head"><span class="req-icon">✓</span><div><h3>Reglas de revisión previa</h3><small>Controles documentales</small></div></div>
@@ -236,7 +239,7 @@
             </ul>
           </article>
         </div>
-        <div class="source-note"><b>Operación actual descrita en el documento:</b> el proveedor debe registrarse en COMPRAMEX y subir los documentos en formato PDF; si la información es correcta se le notifica para agendar cita. Los documentos se presentan en original o copia certificada y copia simple para su cotejo. En este prototipo, ese flujo se representa mediante expediente digital, validación en línea y cita de cotejo.</div>
+        <div class="source-note"><b>Alcance de la demostración:</b> el catálogo 2026 se muestra en el expediente de Alta y Renovación. Los archivos seleccionados solo están disponibles durante la sesión; la indicación de original o copia corresponde a la presentación física y no acredita autenticidad digital.</div>
       </section>
 
       <section id="seguimientoPortal" class="portal-section">
@@ -314,7 +317,7 @@
         <div class="norm-grid">
           <article class="norm-card"><span class="norm-type">Documento operativo</span><h3>Cédula de Registro e Identificación de Proveedores</h3><p>Fuente de los campos de Alta/Renovación, datos generales, registros, actividad, capacidad y declaración.</p><span class="norm-status ready">Incorporado</span></article>
           <article class="norm-card"><span class="norm-type">Documento operativo</span><h3>Instructivo de llenado de la Cédula</h3><p>Fuente de criterios de captura, máximo de giros, cifras financieras y firma del representante o propietario.</p><span class="norm-status ready">Incorporado</span></article>
-          <article class="norm-card"><span class="norm-type">Documento operativo</span><h3>Requisitos del Padrón: Alta, Renovación, Modificación, Duplicado y Reposición</h3><p>Fuente de los requisitos diferenciados por tipo de persona, revisión previa, cotejo y cuotas de referencia 2025.</p><span class="norm-status ready">Incorporado</span></article>
+          <article class="norm-card"><span class="norm-type">Documento operativo</span><h3>Requisitos del Padrón: Alta y Renovación 2026</h3><p>Catálogo documental según persona y supuesto aplicable; las cuotas 2026 se informan tras la validación. Los otros movimientos conservan sus reglas demostrativas previas.</p><span class="norm-status ready">Incorporado</span></article>
           <article class="norm-card muted-card"><span class="norm-type">Pendiente de validación</span><h3>Normativa aplicable al Padrón de Proveedores</h3><p>Espacio previsto para publicar leyes, reglamentos, acuerdos, lineamientos y disposiciones vigentes que determine la autoridad.</p><span class="norm-status pending">Por integrar</span></article>
         </div>
       </section>
@@ -451,6 +454,10 @@
     <div class="modal-card"><div class="modal-head"><h3 id="modalTitle">Información</h3><button id="modalClose" type="button" aria-label="Cerrar">×</button></div><div id="modalBody"></div><div id="modalActions" class="modal-actions"></div></div>
   </div>
 
+  <script src="js/provider-requirements-2026.js"></script>
+  <script src="assets/vendor/leaflet/leaflet.js"></script>
+  <script src="js/provider-map-config.js"></script>
+  <script src="js/provider-geolocation.js"></script>
   <script src="js/app.js"></script>
   <script src="js/market-documents.js"></script>
   <script src="js/catalog-market.js"></script>
