@@ -4,11 +4,13 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Prototipo · COMPRAMEX · Plataforma Mexiquense de Contratación Pública</title>
+  <link rel="icon" href="assets/brand-em.svg" type="image/svg+xml" />
   <link rel="stylesheet" href="assets/vendor/leaflet/leaflet.css" />
   <link rel="stylesheet" href="css/styles.css" />
   <link rel="stylesheet" href="css/provider-geolocation.css" />
   <link rel="stylesheet" href="css/market-adjustments.css" />
   <link rel="stylesheet" href="css/paa.css" />
+  <link rel="stylesheet" href="css/procedures.css" />
 </head>
 <body>
   <div id="app" class="app-shell">
@@ -22,7 +24,7 @@
         </div>
       </div>
       <div class="top-actions">
-        <span class="env-badge">DEMO INTEGRADO v1.3</span>
+        <span class="env-badge">DEMO INTEGRADO v1.12</span>
         <button id="goPublic" class="btn btn-ghost btn-small" type="button">Inicio COMPRAMEX</button>
         <button id="resetDemo" class="btn btn-secondary btn-small" type="button">Restablecer demo</button>
       </div>
@@ -34,7 +36,7 @@
           <div>
             <span class="kicker">Plataforma Mexiquense de Contratación Pública · Prototipo integrado</span>
             <h2>Un solo punto de entrada para los procesos de contratación pública</h2>
-            <p>Esta versión integra el <b>Módulo de Proveedores</b>, el <b>Módulo de Catálogo de Bienes y Servicios y Estudios de Mercado</b> y el nuevo <b>Programa Anual de Adquisiciones</b>, conservando una arquitectura visual común para el ciclo de adquisiciones.</p>
+            <p>Esta versión integra el <b>Módulo de Proveedores</b>, el <b>Módulo de Catálogo de Bienes y Servicios y Estudios de Mercado</b>, el <b>Programa Anual de Adquisiciones</b> y <b>Procedimientos de Contratación</b>, conservando una arquitectura visual común para el ciclo de adquisiciones.</p>
             <div class="public-actions">
               <button class="btn btn-primary" id="goModulesBtn" type="button">Explorar módulos</button>
               <button class="btn btn-secondary" id="catalogAccessBtn" type="button">Catálogo y Estudios de Mercado</button>
@@ -46,18 +48,19 @@
             <div class="active"><b>1. Planeación</b><span>Programación anual y necesidades</span></div>
             <div class="active"><b>2. Catálogo + Estudios</b><span>Clave, mercado y precio de referencia</span></div>
             <div class="active"><b>3. Proveedores</b><span>Padrón, movimientos y expediente</span></div>
-            <div><b>4. Procedimiento adquisitivo</b><span>Licitación, invitación y adjudicación</span></div>
+            <div class="active"><b>4. Procedimiento adquisitivo</b><span>Expediente, modalidad, propuestas y fallo</span></div>
             <div><b>5. Contrato y cierre</b><span>Formalización, entrega y expediente</span></div>
           </aside>
         </div>
       </section>
 
       <section id="compramexModules" class="portal-section module-hub">
-        <div class="section-heading"><div><span class="kicker">Módulos COMPRAMEX</span><h3>Servicios integrados</h3></div><p>Los módulos comparten el portal de entrada, identidad visual y puntos de integración. El prototipo conserva Proveedores y Catálogo/Estudios de Mercado, y añade el workflow completo del Programa Anual de Adquisiciones.</p></div>
+        <div class="section-heading"><div><span class="kicker">Módulos COMPRAMEX</span><h3>Servicios integrados</h3></div><p>Los módulos comparten el portal de entrada, identidad visual y puntos de integración. El prototipo conserva Proveedores, Catálogo/Estudios de Mercado y PAA, e incorpora el flujo demostrativo de Procedimientos de Contratación.</p></div>
         <div class="module-grid">
           <article class="module-card live"><span class="module-state">Disponible</span><div class="module-icon">PR</div><h3>Proveedores</h3><p>Alta, renovación, modificación, duplicado, reposición, expediente digital, asignación y validación.</p><button class="btn btn-primary full" id="providerModuleBtn" type="button">Abrir Módulo de Proveedores</button></article>
           <article class="module-card live"><span class="module-state">Nuevo</span><div class="module-icon">CM</div><h3>Catálogo y Estudios de Mercado</h3><p>Consulta, solicitudes, revisión Art. 28 del Reglamento de la Ley, investigación de mercado, cotizaciones, precio de referencia, firmas y actualización del catálogo.</p><button class="btn btn-primary full" id="catalogModuleBtn" type="button">Abrir Catálogo y Estudios</button></article>
           <article class="module-card live"><span class="module-state">Nuevo</span><div class="module-icon">PA</div><h3>Programa Anual de Adquisiciones</h3><p>Planeación descentralizada, captura, carga masiva, revisión, consolidación, trazabilidad y envío institucional.</p><button class="btn btn-primary full" id="paaModuleBtn" type="button">Abrir Programa Anual de Adquisiciones</button></article>
+          <article class="module-card live"><span class="module-state">Actualizado</span><div class="module-icon">PC</div><h3>Procedimientos de Contratación</h3><p>Solicitudes de dependencias y de la Oficialía Mayor, revisión central, asignación a Dirección y actuaciones por perfil OM-PC.</p><button class="btn btn-primary full" id="proceduresModuleBtn" type="button">Abrir Procedimientos de Contratación</button></article>
           <article class="module-card future"><span class="module-state">Integración futura</span><div class="module-icon">CP</div><h3>Procedimiento de compra</h3><p>Suficiencia, expediente, modalidad, contrato/pedido, entrega y cierre electrónico.</p><button class="btn btn-ghost full" data-future-module type="button">Ver punto de integración</button></article>
         </div>
       </section>
@@ -463,5 +466,7 @@
   <script src="js/market-documents.js"></script>
   <script src="js/catalog-market.js"></script>
   <script src="js/paa.js"></script>
+  <script src="js/procedures-rules.js"></script>
+  <script src="js/procedures.js"></script>
 </body>
 </html>

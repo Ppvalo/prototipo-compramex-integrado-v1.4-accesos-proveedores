@@ -201,3 +201,20 @@ AJUSTES v1.8 · DOCUMENTO DE SOLICITUD, FIRMAS Y VISUALIZACIÓN
 - La pantalla de registro del Catálogo muestra altas y actualizaciones procesadas durante la pestaña actual, con clave, solicitud, precio anterior y nuevo y enlace a la ficha. Este listado temporal desaparece al recargar; el catálogo de demostración sigue guardado en localStorage como antes.
 - Tanto Área Requirente como Coordinación Administrativa pueden configurar y justificar Art. 28 No aplica por bien/servicio; los demás roles sólo consultan el estado. Se mantienen los anexos y validaciones condicionados existentes.
 - Más detalle: AJUSTES_V1_8.md. El módulo de Proveedores no fue modificado.
+
+
+---
+
+## Actualización v1.12 · Procedimientos de Contratación
+
+La guía vigente del módulo actualizado está en `PROCEDIMIENTOS_CONTRATACION_V1_12.md` y el informe verificable en `INFORME_PRUEBAS_V1_12.md`.
+
+El módulo incorpora los nueve perfiles `OM-PC-00` a `OM-PC-08`, los perfiles `Área Requirente` y `Coordinación Administrativa`, los orígenes `DEPENDENCIA` y `OFICIALIA_MAYOR`, la asignación a `OM_DPA_A`, `OM_DPA_B` y `OM_DPA_SA`, y la bitácora de cada transición.
+
+Para ejecutar localmente:
+
+```bash
+python3 -m http.server 8000
+```
+
+Abra `http://127.0.0.1:8000/`. Los datos permanecen en `localStorage` y son demostrativos; la operación productiva requiere backend, autenticación institucional, almacenamiento central y controles documentales.
